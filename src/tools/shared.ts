@@ -1,0 +1,9 @@
+import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
+
+export function jsonResult(data: unknown) {
+  return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+}
+
+export function readOnlyAnnotations(title: string): ToolAnnotations {
+  return { title, readOnlyHint: true, openWorldHint: true };
+}
