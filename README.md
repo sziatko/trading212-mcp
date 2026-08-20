@@ -56,33 +56,46 @@ from source, set them as environment variables (in `.env`, or in `claude_desktop
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `TRADING212_API_KEY` | (required) | Basic-auth credential from Trading212 (Settings → API). |
-| `TRADING212_USE_LIVE` | `false` | Set to `true` to read from your real live account. Defaults to your demo/practice account. |
+| `TRADING212_API_KEY` | — | Basic-auth credential from your **live** Trading212 account (Settings → API). Only used when `TRADING212_USE_LIVE=true`. |
+| `TRADING212_DEMO_API_KEY` | — | Basic-auth credential from your **demo/practice** account. Only used when `TRADING212_USE_LIVE` is unset or `false` (the default). Live and demo keys are separate — only one is active at a time. |
+| `TRADING212_USE_LIVE` | `false` | Set to `true` to read from your real live account instead of demo. |
 | `ENABLE_ACCOUNT_TOOLS` | `true` | Cash balance, account summary. |
 | `ENABLE_POSITIONS_TOOLS` | `true` | Open positions. |
-| `ENABLE_ORDERS_TOOLS` | `true` | Open orders, order history. |
+| `ENABLE_ORDERS_TOOLS` | `true` | Read-only order tools: open orders, order history. |
 | `ENABLE_HISTORY_TOOLS` | `true` | Dividends, transactions. |
-| `ENABLE_PIES_TOOLS` | `true` | Investment pies. |
+| `ENABLE_PIES_TOOLS` | `true` | Read-only pie tools: list/get pies. |
 | `ENABLE_METADATA_TOOLS` | `true` | Instruments, exchanges. |
+| `ENABLE_ORDER_WRITE_TOOLS` | `false` | Place/cancel orders. Independent of `ENABLE_PIE_WRITE_TOOLS`. |
+| `ENABLE_PIE_WRITE_TOOLS` | `false` | Create/update/delete/duplicate pies. Independent of `ENABLE_ORDER_WRITE_TOOLS`. |
 
 Set any `ENABLE_*` variable to `false` to hide that tool category from Claude entirely.
+
+**Order limitations:** orders can only be executed in the account's main currency.
+
+**Write tools require approval.** Every write tool (`place_*_order`, `cancel_order`, `create_pie`,
+`update_pie`, `delete_pie`, `duplicate_pie`) is annotated `readOnlyHint: false`, so Claude Desktop
+prompts you to approve each call individually before it runs — nothing executes silently.
 
 ## Project structure
 
 - `src/index.ts` — entrypoint. Creates the MCP server, registers all tools, and connects it over
   stdio so Claude Desktop can launch it as a subprocess.
-- `src/trading212/client.ts` — `t212Get<T>()`, a small typed wrapper around `fetch` that builds
-  the request URL, adds the `Authorization: Basic <key>` header, and throws on non-2xx responses.
-  Every tool calls the Trading212 API through this one function.
-- `src/trading212/types.ts` — TypeScript interfaces for the shapes returned by the Trading212 API
-  (cash, positions, orders, pies, etc), used to type the client's responses.
+- `src/trading212/client.ts` — `t212Get/t212Post/t212Delete`, typed wrappers around `fetch` that
+  pick the live or demo base URL and API key, add the `Authorization: Basic <key>` header, enforce
+  the per-endpoint rate limit before sending, and throw on non-2xx responses. Every tool calls the
+  Trading212 API through these functions.
+- `src/trading212/rateLimiter.ts` / `rateLimits.ts` — a small in-memory sliding-window limiter and
+  the per-endpoint limits from [Trading212's rate-limiting docs](https://docs.trading212.com/api/section/rate-limiting),
+  so the client waits instead of hitting a 429 in normal use.
+- `src/trading212/types.ts` — TypeScript interfaces for the shapes sent/returned by the Trading212
+  API (cash, positions, orders, pies, etc), used to type the client's requests and responses.
 - `src/tools/` — one file per API domain (`account.ts`, `positions.ts`, `orders.ts`, `history.ts`,
   `pies.ts`, `metadata.ts`). Each exports a `register*Tools(server)` function that registers its
   domain's MCP tools. `shared.ts` and `pagination.ts` hold small helpers reused across them.
 
 ## Available tools
 
-All tools are read-only (`readOnlyHint: true`) and hit the live Trading212 API.
+### Read tools (`readOnlyHint: true`)
 
 | Tool | Description |
 | --- | --- |
@@ -99,6 +112,20 @@ All tools are read-only (`readOnlyHint: true`) and hit the live Trading212 API.
 | `get_pie` | A single investment pie by id, including its holdings. |
 | `get_instruments` | Metadata for all tradeable instruments (tickers, names, ISINs, currencies). |
 | `get_exchanges` | Metadata for all exchanges, including their working schedules. |
+
+### Write tools (`readOnlyHint: false`, disabled by default — see `ENABLE_ORDER_WRITE_TOOLS` / `ENABLE_PIE_WRITE_TOOLS`)
+
+| Tool | Description |
+| --- | --- |
+| `place_market_order` | Place a market order (executes at next available price). |
+| `place_limit_order` | Place a limit order (executes at a specified price or better). |
+| `place_stop_order` | Place a stop order (becomes a market order once triggered). |
+| `place_stop_limit_order` | Place a stop-limit order (becomes a limit order once triggered). |
+| `cancel_order` | Cancel an active, unfilled order by id. |
+| `create_pie` | Create a new investment pie. |
+| `update_pie` | Update an existing pie's settings and/or allocation. |
+| `delete_pie` | Delete a pie by id. |
+| `duplicate_pie` | Duplicate an existing pie. |
 
 ## Testing
 

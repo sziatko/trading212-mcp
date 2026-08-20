@@ -13,7 +13,12 @@ export function registerHistoryTools(server: McpServer) {
       annotations: readOnlyAnnotations("Get Dividends"),
     },
     async ({ cursor, limit }) =>
-      jsonResult(await t212Get<PaginatedResponse<Dividend>>("/equity/history/dividends", { cursor, limit }))
+      jsonResult(
+        await t212Get<PaginatedResponse<Dividend>>("/equity/history/dividends", "dividends", {
+          cursor,
+          limit,
+        })
+      )
   );
 
   server.registerTool(
@@ -25,7 +30,10 @@ export function registerHistoryTools(server: McpServer) {
     },
     async ({ cursor, limit }) =>
       jsonResult(
-        await t212Get<PaginatedResponse<Transaction>>("/equity/history/transactions", { cursor, limit })
+        await t212Get<PaginatedResponse<Transaction>>("/equity/history/transactions", "transactions", {
+          cursor,
+          limit,
+        })
       )
   );
 }

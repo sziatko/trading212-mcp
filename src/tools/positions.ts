@@ -11,7 +11,7 @@ export function registerPositionTools(server: McpServer) {
       description: "Get all open positions in the Trading212 account.",
       annotations: readOnlyAnnotations("Get Positions"),
     },
-    async () => jsonResult(await t212Get<Position[]>("/equity/positions"))
+    async () => jsonResult(await t212Get<Position[]>("/equity/positions", "positions"))
   );
 
   server.registerTool(
@@ -22,6 +22,8 @@ export function registerPositionTools(server: McpServer) {
       annotations: readOnlyAnnotations("Get Position"),
     },
     async ({ ticker }) =>
-      jsonResult(await t212Get<SinglePosition>(`/equity/portfolio/${encodeURIComponent(ticker)}`))
+      jsonResult(
+        await t212Get<SinglePosition>(`/equity/portfolio/${encodeURIComponent(ticker)}`, "position")
+      )
   );
 }

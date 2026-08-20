@@ -69,6 +69,36 @@ export interface Order {
   extendedHours?: boolean;
 }
 
+export type TimeValidity = "DAY" | "GOOD_TILL_CANCEL";
+
+export interface MarketOrderRequest {
+  ticker: string;
+  quantity: number;
+  extendedHours?: boolean;
+}
+
+export interface LimitOrderRequest {
+  ticker: string;
+  quantity: number;
+  limitPrice: number;
+  timeValidity: TimeValidity;
+}
+
+export interface StopOrderRequest {
+  ticker: string;
+  quantity: number;
+  stopPrice: number;
+  timeValidity: TimeValidity;
+}
+
+export interface StopLimitOrderRequest {
+  ticker: string;
+  quantity: number;
+  stopPrice: number;
+  limitPrice: number;
+  timeValidity: TimeValidity;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   nextPagePath?: string;
@@ -101,6 +131,17 @@ export interface PieResult {
   priceAvgValue: number;
   priceAvgResult: number;
   priceAvgResultCoef: number;
+}
+
+export type DividendCashAction = "REINVEST" | "TO_ACCOUNT_CASH";
+
+export interface PieRequest {
+  name: string;
+  goal?: number;
+  instrumentShares?: Record<string, number>;
+  dividendCashAction?: DividendCashAction;
+  endDate?: string;
+  icon?: string;
 }
 
 export interface Pie {

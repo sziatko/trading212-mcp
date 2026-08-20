@@ -2,8 +2,8 @@
   "manifest_version": "0.3",
   "name": "trading212-mcp",
   "display_name": "Trading212",
-  "version": "0.1.0",
-  "description": "Read your Trading212 account data (cash, positions, orders, pies, history) directly in Claude.",
+  "version": "0.2.0",
+  "description": "Read and optionally manage your Trading212 account (cash, positions, orders, pies, history) directly in Claude.",
   "author": {
     "name": "Serhii Ziatko"
   },
@@ -16,28 +16,38 @@
       "args": ["${__dirname}/dist/index.js"],
       "env": {
         "TRADING212_API_KEY": "${user_config.api_key}",
+        "TRADING212_DEMO_API_KEY": "${user_config.demo_api_key}",
         "TRADING212_USE_LIVE": "${user_config.use_live_account}",
         "ENABLE_ACCOUNT_TOOLS": "${user_config.enable_account_tools}",
         "ENABLE_POSITIONS_TOOLS": "${user_config.enable_positions_tools}",
         "ENABLE_ORDERS_TOOLS": "${user_config.enable_orders_tools}",
         "ENABLE_HISTORY_TOOLS": "${user_config.enable_history_tools}",
         "ENABLE_PIES_TOOLS": "${user_config.enable_pies_tools}",
-        "ENABLE_METADATA_TOOLS": "${user_config.enable_metadata_tools}"
+        "ENABLE_METADATA_TOOLS": "${user_config.enable_metadata_tools}",
+        "ENABLE_ORDER_WRITE_TOOLS": "${user_config.enable_order_write_tools}",
+        "ENABLE_PIE_WRITE_TOOLS": "${user_config.enable_pie_write_tools}"
       }
     }
   },
   "user_config": {
     "api_key": {
       "type": "string",
-      "title": "Trading212 API Key",
-      "description": "Basic-auth credential from Trading212 (Settings → API), base64-encoded as key:secret.",
+      "title": "Live API Key",
+      "description": "Basic-auth credential from your Trading212 live account (Settings → API), base64-encoded as key:secret. Only used when 'Use live account' is on.",
       "sensitive": true,
-      "required": true
+      "required": false
+    },
+    "demo_api_key": {
+      "type": "string",
+      "title": "Demo API Key",
+      "description": "Basic-auth credential from your Trading212 demo/practice account, base64-encoded as key:secret. Only used when 'Use live account' is off (the default). Live and demo keys are separate — only one is active at a time, based on the toggle below.",
+      "sensitive": true,
+      "required": false
     },
     "use_live_account": {
       "type": "boolean",
       "title": "Use live account",
-      "description": "Off (default): read from your Trading212 demo/practice account. On: read from your real live account.",
+      "description": "Off (default): read from your Trading212 demo/practice account using the Demo API Key. On: read from your real live account using the Live API Key.",
       "default": false
     },
     "enable_account_tools": {
@@ -75,6 +85,18 @@
       "title": "Metadata tools",
       "description": "Instruments and exchanges.",
       "default": true
+    },
+    "enable_order_write_tools": {
+      "type": "boolean",
+      "title": "Enable order write tools (place/cancel orders)",
+      "description": "Off by default. When on, Claude can place and cancel orders — every such action still requires your explicit approval in Claude Desktop before it runs. Order limitations: orders can only be executed in the account's main currency.",
+      "default": false
+    },
+    "enable_pie_write_tools": {
+      "type": "boolean",
+      "title": "Enable pie write tools (create/update/delete/duplicate pies)",
+      "description": "Off by default. When on, Claude can create, update, delete, and duplicate pies — every such action still requires your explicit approval in Claude Desktop before it runs.",
+      "default": false
     }
   }
 }

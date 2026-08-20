@@ -10,7 +10,7 @@ export function registerMetadataTools(server: McpServer) {
       description: "Get metadata for all tradeable instruments (tickers, names, ISINs, currencies, etc).",
       annotations: readOnlyAnnotations("Get Instruments"),
     },
-    async () => jsonResult(await t212Get<Instrument[]>("/equity/metadata/instruments"))
+    async () => jsonResult(await t212Get<Instrument[]>("/equity/metadata/instruments", "instruments"))
   );
 
   server.registerTool(
@@ -19,6 +19,6 @@ export function registerMetadataTools(server: McpServer) {
       description: "Get metadata for all exchanges, including their working schedules.",
       annotations: readOnlyAnnotations("Get Exchanges"),
     },
-    async () => jsonResult(await t212Get<Exchange[]>("/equity/metadata/exchanges"))
+    async () => jsonResult(await t212Get<Exchange[]>("/equity/metadata/exchanges", "exchanges"))
   );
 }

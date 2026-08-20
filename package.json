@@ -1,6 +1,6 @@
 {
   "name": "trading212-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server that connects Claude to your Trading212 account",
   "type": "module",
   "main": "dist/index.js",
