@@ -17,16 +17,55 @@ started yet. See `ROADMAP.md` for the full plan.
 
 ## Setup
 
+### Option A: install as a Claude Desktop extension (recommended, no build required)
+
+1. Download `trading212-mcp.mcpb` from the [latest release](../../releases/latest).
+2. Double-click it (or drag it into the Claude Desktop window) to install.
+3. Claude Desktop will prompt for your Trading212 API key and let you toggle demo mode and
+   individual tool categories on/off — no terminal, no Node.js, no build step needed.
+
+### Option B: run from source (for development)
+
 1. Clone this repository.
 2. Run `npm install`.
 3. Copy `.env.example` to `.env` and add your Trading212 API key.
 4. Run `npm run dev` to start the server locally.
-5. Add the server to Claude Desktop as a local extension, pointing to this project folder.
+5. Add the server to Claude Desktop as a local extension, pointing to this project folder (see
+   `claude_desktop_config.json`'s `mcpServers` section).
+
+### Building the extension yourself
+
+```
+npm install -g @anthropic-ai/mcpb
+npm run package
+```
+
+This builds the project, installs production-only dependencies into a temp directory, and packs
+`trading212-mcp.mcpb` in the repo root (see `scripts/package.sh` and `manifest.json`).
 
 ## Data source
 
 By default, this server reads from your Trading212 account as configured in `.env`. See
 `ROADMAP.md` for the plan to add a Demo vs Live switch and an in-app settings screen.
+
+## Configuration
+
+When installed as a Claude Desktop extension, these are exposed as a settings UI. When running
+from source, set them as environment variables (in `.env`, or in `claude_desktop_config.json`'s
+`env` block):
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `TRADING212_API_KEY` | (required) | Basic-auth credential from Trading212 (Settings → API). |
+| `TRADING212_USE_LIVE` | `false` | Set to `true` to read from your real live account. Defaults to your demo/practice account. |
+| `ENABLE_ACCOUNT_TOOLS` | `true` | Cash balance, account summary. |
+| `ENABLE_POSITIONS_TOOLS` | `true` | Open positions. |
+| `ENABLE_ORDERS_TOOLS` | `true` | Open orders, order history. |
+| `ENABLE_HISTORY_TOOLS` | `true` | Dividends, transactions. |
+| `ENABLE_PIES_TOOLS` | `true` | Investment pies. |
+| `ENABLE_METADATA_TOOLS` | `true` | Instruments, exchanges. |
+
+Set any `ENABLE_*` variable to `false` to hide that tool category from Claude entirely.
 
 ## Project structure
 

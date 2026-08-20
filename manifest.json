@@ -1,0 +1,80 @@
+{
+  "manifest_version": "0.3",
+  "name": "trading212-mcp",
+  "display_name": "Trading212",
+  "version": "0.1.0",
+  "description": "Read your Trading212 account data (cash, positions, orders, pies, history) directly in Claude.",
+  "author": {
+    "name": "Serhii Ziatko"
+  },
+  "license": "MIT",
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "TRADING212_API_KEY": "${user_config.api_key}",
+        "TRADING212_USE_LIVE": "${user_config.use_live_account}",
+        "ENABLE_ACCOUNT_TOOLS": "${user_config.enable_account_tools}",
+        "ENABLE_POSITIONS_TOOLS": "${user_config.enable_positions_tools}",
+        "ENABLE_ORDERS_TOOLS": "${user_config.enable_orders_tools}",
+        "ENABLE_HISTORY_TOOLS": "${user_config.enable_history_tools}",
+        "ENABLE_PIES_TOOLS": "${user_config.enable_pies_tools}",
+        "ENABLE_METADATA_TOOLS": "${user_config.enable_metadata_tools}"
+      }
+    }
+  },
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "Trading212 API Key",
+      "description": "Basic-auth credential from Trading212 (Settings → API), base64-encoded as key:secret.",
+      "sensitive": true,
+      "required": true
+    },
+    "use_live_account": {
+      "type": "boolean",
+      "title": "Use live account",
+      "description": "Off (default): read from your Trading212 demo/practice account. On: read from your real live account.",
+      "default": false
+    },
+    "enable_account_tools": {
+      "type": "boolean",
+      "title": "Account tools",
+      "description": "Cash balance and account summary.",
+      "default": true
+    },
+    "enable_positions_tools": {
+      "type": "boolean",
+      "title": "Position tools",
+      "description": "Open positions.",
+      "default": true
+    },
+    "enable_orders_tools": {
+      "type": "boolean",
+      "title": "Order tools",
+      "description": "Open orders and order history.",
+      "default": true
+    },
+    "enable_history_tools": {
+      "type": "boolean",
+      "title": "History tools",
+      "description": "Dividends and transactions.",
+      "default": true
+    },
+    "enable_pies_tools": {
+      "type": "boolean",
+      "title": "Pie tools",
+      "description": "Investment pies.",
+      "default": true
+    },
+    "enable_metadata_tools": {
+      "type": "boolean",
+      "title": "Metadata tools",
+      "description": "Instruments and exchanges.",
+      "default": true
+    }
+  }
+}

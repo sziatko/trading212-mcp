@@ -1,4 +1,8 @@
-const TRADING212_BASE_URL = "https://live.trading212.com/api/v0";
+const USE_LIVE = process.env.TRADING212_USE_LIVE === "true";
+
+const TRADING212_BASE_URL = USE_LIVE
+  ? "https://live.trading212.com/api/v0"
+  : "https://demo.trading212.com/api/v0";
 
 const API_KEY = process.env.TRADING212_API_KEY;
 if (!API_KEY) {

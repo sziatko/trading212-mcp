@@ -26,13 +26,13 @@ describe("t212Get", () => {
     expect(options.headers.Authorization).toBe("Basic test-key");
   });
 
-  it("requests the given path against the live base URL", async () => {
+  it("requests the given path against the demo base URL by default", async () => {
     mockFetchOnce({});
 
     await t212Get("/equity/account/cash");
 
     const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(url.toString()).toBe("https://live.trading212.com/api/v0/equity/account/cash");
+    expect(url.toString()).toBe("https://demo.trading212.com/api/v0/equity/account/cash");
   });
 
   it("appends defined query params and omits undefined ones", async () => {
