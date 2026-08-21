@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { t212Get } from "./client.js";
+import { t212Delete, t212Get, t212Post } from "./client.js";
 import { __resetRateLimiter } from "./rateLimiter.js";
 
 function mockFetchOnce(body: unknown, init?: { ok?: boolean; status?: number; statusText?: string }) {
@@ -69,6 +69,76 @@ describe("t212Get", () => {
 
     await expect(t212Get("/equity/account/cash", "account/cash")).rejects.toThrow(
       "Trading212 API error: 429 Too Many Requests"
+    );
+  });
+});
+
+describe("t212Post", () => {
+  it("sends a POST with a JSON body and Content-Type header", async () => {
+    mockFetchOnce({ id: 1 });
+
+    await t212Post("/equity/orders/limit", "placeLimitOrder", {
+      ticker: "AAPL_US_EQ",
+      quantity: 1,
+      limitPrice: 100,
+      timeValidity: "DAY",
+    });
+
+    const [url, options] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url.toString()).toBe("https://demo.trading212.com/api/v0/equity/orders/limit");
+    expect(options.method).toBe("POST");
+    expect(options.headers.Authorization).toBe("Basic test-demo-key");
+    expect(options.headers["Content-Type"]).toBe("application/json");
+    expect(JSON.parse(options.body)).toEqual({
+      ticker: "AAPL_US_EQ",
+      quantity: 1,
+      limitPrice: 100,
+      timeValidity: "DAY",
+    });
+  });
+
+  it("returns the parsed JSON body on success", async () => {
+    mockFetchOnce({ id: 42, status: "CONFIRMED" });
+
+    const result = await t212Post("/equity/orders/market", "placeMarketOrder", { ticker: "AAPL_US_EQ", quantity: 1 });
+
+    expect(result).toEqual({ id: 42, status: "CONFIRMED" });
+  });
+
+  it("throws on a non-2xx response, same as t212Get", async () => {
+    mockFetchOnce({}, { ok: false, status: 400, statusText: "Bad Request" });
+
+    await expect(
+      t212Post("/equity/orders/market", "placeMarketOrder", { ticker: "AAPL_US_EQ", quantity: 1 })
+    ).rejects.toThrow("Trading212 API error: 400 Bad Request");
+  });
+});
+
+describe("t212Delete", () => {
+  it("sends a DELETE with no body", async () => {
+    mockFetchOnce({}, { status: 204 });
+
+    await t212Delete("/equity/orders/123", "cancelOrder");
+
+    const [url, options] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url.toString()).toBe("https://demo.trading212.com/api/v0/equity/orders/123");
+    expect(options.method).toBe("DELETE");
+    expect(options.body).toBeUndefined();
+  });
+
+  it("returns undefined for a 204 No Content response", async () => {
+    mockFetchOnce({}, { status: 204 });
+
+    const result = await t212Delete("/equity/orders/123", "cancelOrder");
+
+    expect(result).toBeUndefined();
+  });
+
+  it("throws on a non-2xx response, same as t212Get", async () => {
+    mockFetchOnce({}, { ok: false, status: 404, statusText: "Not Found" });
+
+    await expect(t212Delete("/equity/orders/999", "cancelOrder")).rejects.toThrow(
+      "Trading212 API error: 404 Not Found"
     );
   });
 });

@@ -1,13 +1,15 @@
 # trading212-mcp
 
-An MCP server that connects Claude to your Trading212 account. It reads your real account data,
-such as cash balance, open positions, and order history, so you can ask about your investments
-directly in a chat with Claude. A later stage will add the ability to place and cancel orders.
+An MCP server that connects Claude to your Trading212 account. It reads your real account data —
+cash balance, open positions, orders, pies, and history — so you can ask about your investments
+directly in a chat with Claude. Optionally, with write tools enabled, Claude can also place and
+cancel orders and manage pies (create/update/delete/duplicate), always with your explicit approval
+before each action.
 
 ## Status
 
-Early development. Stage 1 (read-only data) is in progress. Stage 2 (placing orders) has not
-started yet. See `ROADMAP.md` for the full plan.
+Both read tools and write tools (orders, pies) are implemented. Write tools are off by default —
+see [Configuration](#configuration) to enable them.
 
 ## Requirements
 
@@ -21,8 +23,9 @@ started yet. See `ROADMAP.md` for the full plan.
 
 1. Download `trading212-mcp.mcpb` from the [latest release](../../releases/latest).
 2. Double-click it (or drag it into the Claude Desktop window) to install.
-3. Claude Desktop will prompt for your Trading212 API key and let you toggle demo mode and
-   individual tool categories on/off — no terminal, no Node.js, no build step needed.
+3. Claude Desktop will prompt for your Trading212 API key(s), whether to use your live or demo
+   account, and let you toggle individual tool categories (including write tools) on/off — no
+   terminal, no Node.js, no build step needed.
 
 ### Option B: run from source (for development)
 
@@ -45,8 +48,9 @@ This builds the project, installs production-only dependencies into a temp direc
 
 ## Data source
 
-By default, this server reads from your Trading212 account as configured in `.env`. See
-`ROADMAP.md` for the plan to add a Demo vs Live switch and an in-app settings screen.
+By default, this server reads from your Trading212 demo/practice account. Set
+`TRADING212_USE_LIVE=true` (or toggle "Use live account" in the extension settings) to read from
+your real live account instead — see [Configuration](#configuration).
 
 ## Configuration
 
@@ -135,8 +139,11 @@ Unit tests use [Vitest](https://vitest.dev). Run them with:
 npm test
 ```
 
-`test/setup.ts` stubs `TRADING212_API_KEY` before any module loads, since `client.ts` validates
-it at import time. Tests mock `fetch` rather than calling the live API.
+`test/setup.ts` stubs `TRADING212_API_KEY`/`TRADING212_DEMO_API_KEY` before any module loads,
+since `client.ts` validates them at import time. Coverage includes: `t212Get`/`t212Post`/
+`t212Delete` (auth header, URL building, error handling) mocking `fetch`; the rate limiter's
+sliding-window behavior; and the order/pie write tools' request routing and `readOnlyHint:false`
+annotations, mocking the client module directly.
 
 ## License
 
