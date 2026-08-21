@@ -7,6 +7,15 @@ const TRADING212_BASE_URL = USE_LIVE
   ? "https://live.trading212.com/api/v0"
   : "https://demo.trading212.com/api/v0";
 
+/**
+ * Which Trading212 account every tool call in this process talks to. Fixed at
+ * startup (see the README on why settings changes need a full Claude Desktop
+ * restart) — surfaced in every tool's description and response so the user
+ * can't mistake a demo response for a live one, or vice versa.
+ */
+export const ACCOUNT_ENVIRONMENT: "LIVE" | "DEMO" = USE_LIVE ? "LIVE" : "DEMO";
+export const ACCOUNT_ENVIRONMENT_TAG = USE_LIVE ? "🔴 LIVE" : "🧪 DEMO";
+
 const API_KEY = USE_LIVE ? process.env.TRADING212_API_KEY : process.env.TRADING212_DEMO_API_KEY;
 if (!API_KEY) {
   throw new Error(

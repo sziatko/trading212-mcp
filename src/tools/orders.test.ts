@@ -5,6 +5,7 @@ vi.mock("../api/client.js", () => ({
   t212Get: vi.fn().mockResolvedValue([]),
   t212Post: vi.fn().mockResolvedValue({ id: 1, status: "CONFIRMED" }),
   t212Delete: vi.fn().mockResolvedValue(undefined),
+  ACCOUNT_ENVIRONMENT_TAG: "🧪 DEMO",
 }));
 
 function createFakeServer() {
@@ -35,6 +36,15 @@ describe("order write tools", () => {
 
     for (const [name, { config }] of server.tools) {
       expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+    }
+  });
+
+  it("tag every description with the live/demo environment", () => {
+    const server = createFakeServer();
+    registerOrderWriteTools(server as any);
+
+    for (const [name, { config }] of server.tools) {
+      expect(config.description, `${name} should start with the environment tag`).toMatch(/^🧪 DEMO /);
     }
   });
 
@@ -118,6 +128,15 @@ describe("order read tools", () => {
 
     for (const [name, { config }] of server.tools) {
       expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+    }
+  });
+
+  it("tag every description with the live/demo environment", () => {
+    const server = createFakeServer();
+    registerOrderReadTools(server as any);
+
+    for (const [name, { config }] of server.tools) {
+      expect(config.description, `${name} should start with the environment tag`).toMatch(/^🧪 DEMO /);
     }
   });
 

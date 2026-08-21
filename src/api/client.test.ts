@@ -46,6 +46,26 @@ describe("module initialization", () => {
       "Missing TRADING212_DEMO_API_KEY in environment"
     );
   });
+
+  it("derives ACCOUNT_ENVIRONMENT/ACCOUNT_ENVIRONMENT_TAG as DEMO by default", async () => {
+    vi.resetModules();
+    delete process.env.TRADING212_USE_LIVE;
+
+    const client = await import("./client.js");
+
+    expect(client.ACCOUNT_ENVIRONMENT).toBe("DEMO");
+    expect(client.ACCOUNT_ENVIRONMENT_TAG).toBe("🧪 DEMO");
+  });
+
+  it("derives ACCOUNT_ENVIRONMENT/ACCOUNT_ENVIRONMENT_TAG as LIVE when TRADING212_USE_LIVE=true", async () => {
+    vi.resetModules();
+    process.env.TRADING212_USE_LIVE = "true";
+
+    const client = await import("./client.js");
+
+    expect(client.ACCOUNT_ENVIRONMENT).toBe("LIVE");
+    expect(client.ACCOUNT_ENVIRONMENT_TAG).toBe("🔴 LIVE");
+  });
 });
 
 describe("t212Get", () => {

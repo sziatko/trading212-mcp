@@ -13,14 +13,20 @@ import {
   type StopLimitOrderRequest,
   type StopOrderRequest,
 } from "../api/types.js";
-import { jsonResult, ORDER_LIMITATIONS_NOTE, readOnlyAnnotations, writeAnnotations } from "./shared.js";
+import {
+  jsonResult,
+  ORDER_LIMITATIONS_NOTE,
+  readOnlyAnnotations,
+  withEnvironmentTag,
+  writeAnnotations,
+} from "./shared.js";
 import { paginationSchema } from "./pagination.js";
 
 export function registerOrderReadTools(server: McpServer) {
   server.registerTool(
     "get_orders",
     {
-      description: "Get all currently open/pending orders.",
+      description: withEnvironmentTag("Get all currently open/pending orders."),
       outputSchema: { orders: z.array(OrderSchema) },
       annotations: readOnlyAnnotations("Get Orders"),
     },
@@ -30,7 +36,7 @@ export function registerOrderReadTools(server: McpServer) {
   server.registerTool(
     "get_order",
     {
-      description: "Get a single open/pending order by id.",
+      description: withEnvironmentTag("Get a single open/pending order by id."),
       inputSchema: { orderId: z.number().describe("Order id") },
       outputSchema: OrderSchema,
       annotations: readOnlyAnnotations("Get Order"),
@@ -41,7 +47,7 @@ export function registerOrderReadTools(server: McpServer) {
   server.registerTool(
     "get_order_history",
     {
-      description: "Get historical (filled/cancelled) orders, paginated.",
+      description: withEnvironmentTag("Get historical (filled/cancelled) orders, paginated."),
       inputSchema: {
         ...paginationSchema,
         ticker: z.string().optional().describe("Filter by instrument ticker."),
@@ -70,7 +76,9 @@ export function registerOrderWriteTools(server: McpServer) {
   server.registerTool(
     "place_market_order",
     {
-      description: `Place a market order, executed immediately at the next available price. ${ORDER_LIMITATIONS_NOTE}`,
+      description: withEnvironmentTag(
+        `Place a market order, executed immediately at the next available price. ${ORDER_LIMITATIONS_NOTE}`
+      ),
       inputSchema: {
         ticker,
         quantity,
@@ -86,7 +94,9 @@ export function registerOrderWriteTools(server: McpServer) {
   server.registerTool(
     "place_limit_order",
     {
-      description: `Place a limit order, executed at a specified price or better. ${ORDER_LIMITATIONS_NOTE}`,
+      description: withEnvironmentTag(
+        `Place a limit order, executed at a specified price or better. ${ORDER_LIMITATIONS_NOTE}`
+      ),
       inputSchema: {
         ticker,
         quantity,
@@ -103,7 +113,9 @@ export function registerOrderWriteTools(server: McpServer) {
   server.registerTool(
     "place_stop_order",
     {
-      description: `Place a stop order: becomes a market order once stopPrice is reached. ${ORDER_LIMITATIONS_NOTE}`,
+      description: withEnvironmentTag(
+        `Place a stop order: becomes a market order once stopPrice is reached. ${ORDER_LIMITATIONS_NOTE}`
+      ),
       inputSchema: {
         ticker,
         quantity,
@@ -120,7 +132,9 @@ export function registerOrderWriteTools(server: McpServer) {
   server.registerTool(
     "place_stop_limit_order",
     {
-      description: `Place a stop-limit order: becomes a limit order once stopPrice is reached. ${ORDER_LIMITATIONS_NOTE}`,
+      description: withEnvironmentTag(
+        `Place a stop-limit order: becomes a limit order once stopPrice is reached. ${ORDER_LIMITATIONS_NOTE}`
+      ),
       inputSchema: {
         ticker,
         quantity,
@@ -138,7 +152,7 @@ export function registerOrderWriteTools(server: McpServer) {
   server.registerTool(
     "cancel_order",
     {
-      description: "Cancel an active, unfilled order by its id.",
+      description: withEnvironmentTag("Cancel an active, unfilled order by its id."),
       inputSchema: { orderId: z.number().describe("Order id") },
       outputSchema: { cancelled: z.boolean(), orderId: z.number() },
       annotations: writeAnnotations("Cancel Order", { destructive: true }),

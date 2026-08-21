@@ -5,6 +5,7 @@ vi.mock("../api/client.js", () => ({
   t212Get: vi.fn().mockResolvedValue([]),
   t212Post: vi.fn().mockResolvedValue({ settings: { id: 1 } }),
   t212Delete: vi.fn().mockResolvedValue(undefined),
+  ACCOUNT_ENVIRONMENT_TAG: "🧪 DEMO",
 }));
 
 function createFakeServer() {
@@ -33,6 +34,15 @@ describe("pie write tools", () => {
 
     for (const [name, { config }] of server.tools) {
       expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+    }
+  });
+
+  it("tag every description with the live/demo environment", () => {
+    const server = createFakeServer();
+    registerPieWriteTools(server as any);
+
+    for (const [name, { config }] of server.tools) {
+      expect(config.description, `${name} should start with the environment tag`).toMatch(/^🧪 DEMO /);
     }
   });
 
@@ -97,6 +107,15 @@ describe("pie read tools", () => {
 
     for (const [name, { config }] of server.tools) {
       expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+    }
+  });
+
+  it("tag every description with the live/demo environment", () => {
+    const server = createFakeServer();
+    registerPieReadTools(server as any);
+
+    for (const [name, { config }] of server.tools) {
+      expect(config.description, `${name} should start with the environment tag`).toMatch(/^🧪 DEMO /);
     }
   });
 

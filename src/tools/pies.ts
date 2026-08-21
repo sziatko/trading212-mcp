@@ -9,7 +9,7 @@ import {
   type PieRequest,
   type PieSummary,
 } from "../api/types.js";
-import { jsonResult, readOnlyAnnotations, writeAnnotations } from "./shared.js";
+import { jsonResult, readOnlyAnnotations, withEnvironmentTag, writeAnnotations } from "./shared.js";
 
 const pieRequestSchema = {
   name: z.string().describe("Pie name."),
@@ -27,7 +27,7 @@ export function registerPieReadTools(server: McpServer) {
   server.registerTool(
     "get_pies",
     {
-      description: "Get all investment pies in the Trading212 account.",
+      description: withEnvironmentTag("Get all investment pies in the Trading212 account."),
       outputSchema: { pies: z.array(PieSummarySchema) },
       annotations: readOnlyAnnotations("Get Pies"),
     },
@@ -37,7 +37,7 @@ export function registerPieReadTools(server: McpServer) {
   server.registerTool(
     "get_pie",
     {
-      description: "Get a single investment pie by id, including its holdings.",
+      description: withEnvironmentTag("Get a single investment pie by id, including its holdings."),
       inputSchema: { pieId: z.number().describe("Pie id") },
       outputSchema: PieDetailSchema,
       annotations: readOnlyAnnotations("Get Pie"),
@@ -50,7 +50,7 @@ export function registerPieWriteTools(server: McpServer) {
   server.registerTool(
     "create_pie",
     {
-      description: "Create a new investment pie.",
+      description: withEnvironmentTag("Create a new investment pie."),
       inputSchema: pieRequestSchema,
       outputSchema: PieDetailSchema,
       annotations: writeAnnotations("Create Pie"),
@@ -61,7 +61,7 @@ export function registerPieWriteTools(server: McpServer) {
   server.registerTool(
     "update_pie",
     {
-      description: "Update an existing investment pie's settings and/or allocation.",
+      description: withEnvironmentTag("Update an existing investment pie's settings and/or allocation."),
       inputSchema: { pieId: z.number().describe("Pie id"), ...pieRequestSchema },
       outputSchema: PieDetailSchema,
       annotations: writeAnnotations("Update Pie"),
@@ -73,7 +73,7 @@ export function registerPieWriteTools(server: McpServer) {
   server.registerTool(
     "delete_pie",
     {
-      description: "Delete an investment pie by id.",
+      description: withEnvironmentTag("Delete an investment pie by id."),
       inputSchema: { pieId: z.number().describe("Pie id") },
       outputSchema: { deleted: z.boolean(), pieId: z.number() },
       annotations: writeAnnotations("Delete Pie", { destructive: true }),
@@ -87,7 +87,9 @@ export function registerPieWriteTools(server: McpServer) {
   server.registerTool(
     "duplicate_pie",
     {
-      description: "Duplicate an existing investment pie, optionally renaming/re-iconing the copy.",
+      description: withEnvironmentTag(
+        "Duplicate an existing investment pie, optionally renaming/re-iconing the copy."
+      ),
       inputSchema: {
         pieId: z.number().describe("Pie id to duplicate"),
         name: z.string().optional().describe("Name for the duplicated pie."),

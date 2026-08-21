@@ -3,6 +3,7 @@ import { registerMetadataTools } from "./metadata.js";
 
 vi.mock("../api/client.js", () => ({
   t212Get: vi.fn().mockResolvedValue([]),
+  ACCOUNT_ENVIRONMENT_TAG: "🧪 DEMO",
 }));
 
 function createFakeServer() {
@@ -31,6 +32,15 @@ describe("metadata tools", () => {
 
     for (const [name, { config }] of server.tools) {
       expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+    }
+  });
+
+  it("tag every description with the live/demo environment", () => {
+    const server = createFakeServer();
+    registerMetadataTools(server as any);
+
+    for (const [name, { config }] of server.tools) {
+      expect(config.description, `${name} should start with the environment tag`).toMatch(/^🧪 DEMO /);
     }
   });
 

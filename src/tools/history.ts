@@ -9,14 +9,14 @@ import {
   type PaginatedResponse,
   type Transaction,
 } from "../api/types.js";
-import { jsonResult, readOnlyAnnotations } from "./shared.js";
+import { jsonResult, readOnlyAnnotations, withEnvironmentTag } from "./shared.js";
 import { paginationSchema } from "./pagination.js";
 
 export function registerHistoryTools(server: McpServer) {
   server.registerTool(
     "get_dividends",
     {
-      description: "Get historical dividend payments, paginated.",
+      description: withEnvironmentTag("Get historical dividend payments, paginated."),
       inputSchema: {
         ...paginationSchema,
         ticker: z.string().optional().describe("Filter by instrument ticker."),
@@ -37,7 +37,9 @@ export function registerHistoryTools(server: McpServer) {
   server.registerTool(
     "get_transactions",
     {
-      description: "Get historical cash movements (deposits, withdrawals, transfers), paginated.",
+      description: withEnvironmentTag(
+        "Get historical cash movements (deposits, withdrawals, transfers), paginated."
+      ),
       inputSchema: {
         ...paginationSchema,
         time: z.string().optional().describe("Retrieve transactions from this ISO 8601 time onward."),
