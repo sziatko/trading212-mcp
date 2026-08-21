@@ -60,6 +60,14 @@ When installed as a Claude Desktop extension, these are exposed as a settings UI
 from source, set them as environment variables (in `.env`, or in `claude_desktop_config.json`'s
 `env` block):
 
+**Changing any setting requires a full Claude Desktop restart** (quit and reopen, not just a new
+chat) to take effect. This is a Claude Desktop limitation, not something this server controls:
+settings are passed in as environment variables when Claude Desktop spawns the server process, and
+a running process can't pick up new environment variables from outside — only a fresh process
+launch does. There is currently no way to reload a single extension without restarting the whole
+app; see [Anthropic's own documentation](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop),
+which states the same restart requirement.
+
 | Variable | Default | Description |
 | --- | --- | --- |
 | `TRADING212_API_KEY` | — | Basic-auth credential from your **live** Trading212 account (Settings → API). Only used when `TRADING212_USE_LIVE=true`. |
