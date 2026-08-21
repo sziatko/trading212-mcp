@@ -6,30 +6,27 @@ An MCP server that connects Claude to your Trading212 account. It reads your rea
 cash balance, open positions, orders, pies, and history — so you can ask about your investments
 directly in a chat with Claude. Optionally, with write tools enabled, Claude can also place and
 cancel orders and manage pies (create/update/delete/duplicate), always with your explicit approval
-before each action.
+before each action. Read tools are read-only by design; write tools are off by default and every
+call still requires your explicit approval in Claude Desktop before it runs — nothing executes
+silently, and the whole thing is open source and runs locally on your machine.
+
+## Install
+
+1. **[Download trading212-mcp.mcpb](../../releases/latest/download/trading212-mcp.mcpb)**
+2. Double-click it (or drag it into the Claude Desktop window) to install.
+3. Claude Desktop will prompt for your Trading212 API key(s), whether to use your live or demo
+   account, and let you toggle individual tool categories (including write tools) on/off — no
+   terminal, no Node.js, no build step needed.
+
+You'll need a Trading212 account and an API key (from the Trading212 web app, under API settings),
+and Claude Desktop.
 
 ## Status
 
 Both read tools and write tools (orders, pies) are implemented. Write tools are off by default —
 see [Configuration](#configuration) to enable them.
 
-## Requirements
-
-- Node.js 24 or newer
-- A Trading212 account and an API key (from the Trading212 web app, under API settings)
-- Claude Desktop, to use this server as a local extension
-
-## Setup
-
-### Option A: install as a Claude Desktop extension (recommended, no build required)
-
-1. Download `trading212-mcp.mcpb` from the [latest release](../../releases/latest).
-2. Double-click it (or drag it into the Claude Desktop window) to install.
-3. Claude Desktop will prompt for your Trading212 API key(s), whether to use your live or demo
-   account, and let you toggle individual tool categories (including write tools) on/off — no
-   terminal, no Node.js, no build step needed.
-
-### Option B: run from source (for development)
+## Running from source (for development)
 
 1. Clone this repository.
 2. Run `npm install`.
