@@ -1,5 +1,7 @@
 # trading212-mcp
 
+[![CI](https://github.com/sziatko/trading212-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/sziatko/trading212-mcp/actions/workflows/ci.yml)
+
 An MCP server that connects Claude to your Trading212 account. It reads your real account data —
 cash balance, open positions, orders, pies, and history — so you can ask about your investments
 directly in a chat with Claude. Optionally, with write tools enabled, Claude can also place and
