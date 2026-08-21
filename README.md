@@ -76,7 +76,7 @@ from source, set them as environment variables (in `.env`, or in `claude_desktop
 
 Set any `ENABLE_*` variable to `false` to hide that tool category from Claude entirely.
 
-**Order limitations:** orders can only be executed in the account's main currency.
+**Order limitations:** orders can only be executed in the account's main currency. [link](https://docs.trading212.com/api/orders)
 
 **Write tools require approval.** Every write tool (`place_*_order`, `cancel_order`, `create_pie`,
 `update_pie`, `delete_pie`, `duplicate_pie`) is annotated `readOnlyHint: false`, so Claude Desktop
@@ -91,7 +91,14 @@ prompts you to approve each call individually before it runs — nothing execute
   per-endpoint rate limit before sending, and throw on non-2xx responses. Every tool calls the
   Trading212 API through these functions.
 - `src/api/types.ts` — TypeScript interfaces for the shapes sent/returned by the Trading212 API
-  (cash, positions, orders, pies, etc), used to type the client's requests and responses.
+  (cash, positions, orders, pies, etc), used to type the client's requests and responses. Kept in
+  sync with the official OpenAPI spec below, except `CashBalance`: `/equity/account/cash` isn't in
+  that spec at all, so its fields are best-effort from observed live responses, not a verified
+  schema (see the doc comment on `CashBalance` in the file). It's kept anyway (see `get_cash_balance`
+  below) because it returns `ppl`/`result` — account-level profit/loss figures with no equivalent
+  anywhere in the documented API, including `get_account_summary`.
+- `docs/trading212-openapi.yaml` — Trading212's official OpenAPI spec, kept as a reference for
+  exact request/response schemas and rate limits. Not fetched at runtime.
 - `src/rate-limit/rateLimiter.ts` / `rateLimits.ts` — a small in-memory sliding-window limiter and
   a declarative table of every endpoint documented at
   [Trading212's rate-limiting docs](https://docs.trading212.com/api/section/rate-limiting) (method,
@@ -106,17 +113,17 @@ prompts you to approve each call individually before it runs — nothing execute
 
 | Tool | Description |
 | --- | --- |
-| `get_cash_balance` | Current cash balance. |
+| `get_cash_balance` | Current cash balance, via the undocumented legacy `/equity/account/cash` endpoint — kept because it's the only source for `ppl`/`result` (account-level profit/loss) and a couple of other fields (`invested`, `pieCash`, `blocked`) not available from any documented endpoint. |
 | `get_account_summary` | Full account summary: cash, invested value, profit/loss, total value. |
 | `get_positions` | All open positions. |
-| `get_position` | A single open position by ticker. |
+| `get_position` | A single open position by ticker (filters `get_positions` server-side; returns 0 or 1 items). |
 | `get_orders` | All currently open/pending orders. |
 | `get_order` | A single open/pending order by id. |
-| `get_order_history` | Historical (filled/cancelled) orders, paginated. |
-| `get_dividends` | Historical dividend payments, paginated. |
-| `get_transactions` | Historical cash movements (deposits, withdrawals, transfers), paginated. |
-| `get_pies` | All investment pies. |
-| `get_pie` | A single investment pie by id, including its holdings. |
+| `get_order_history` | Historical (filled/cancelled) orders, paginated, optionally filtered by ticker. |
+| `get_dividends` | Historical dividend payments, paginated, optionally filtered by ticker. |
+| `get_transactions` | Historical cash movements (deposits, withdrawals, transfers), paginated, optionally from a given time. |
+| `get_pies` | All investment pies (summary shape: cash, dividends, result, status). |
+| `get_pie` | A single investment pie by id (detailed shape: settings, holdings, per-instrument allocation). |
 | `get_instruments` | Metadata for all tradeable instruments (tickers, names, ISINs, currencies). |
 | `get_exchanges` | Metadata for all exchanges, including their working schedules. |
 
@@ -132,7 +139,7 @@ prompts you to approve each call individually before it runs — nothing execute
 | `create_pie` | Create a new investment pie. |
 | `update_pie` | Update an existing pie's settings and/or allocation. |
 | `delete_pie` | Delete a pie by id. |
-| `duplicate_pie` | Duplicate an existing pie. |
+| `duplicate_pie` | Duplicate an existing pie, optionally renaming/re-iconing the copy. |
 
 ## Testing
 
@@ -143,7 +150,10 @@ npm test
 ```
 
 Run `npm run test:coverage` for a coverage report (100% statements/branches/functions/lines as of
-this writing).
+this writing, across every source file except `src/index.ts`, which `vitest.config.ts` excludes —
+it's thin wiring around the MCP SDK's stdio transport, not worth mocking that transport to test.
+`coverage.all: true` is set so a file with zero tests shows up as 0% rather than being silently
+omitted from the report).
 
 `test/setup.ts` stubs `TRADING212_API_KEY`/`TRADING212_DEMO_API_KEY` before any module loads,
 since `client.ts` validates them at import time. Coverage includes: `t212Get`/`t212Post`/

@@ -18,18 +18,21 @@ export interface EndpointRateLimit {
  * e.g. GET/POST/DELETE on /equity/pies/{id} each get their own bucket here,
  * even though they currently share the same numeric limit.
  *
- * Two entries are not separately documented and are assumed conservatively:
+ * One entry is not separately documented and is assumed conservatively:
  * `accountCash` (folded into the account section, no dedicated rate-limit
- * row — assumed same as accountSummary) and `positionSingle` (the
- * `/equity/portfolio/{ticker}` path is a legacy/undocumented endpoint with no
- * published limit — assumed same as positionsList).
+ * row — assumed same as accountSummary; it also doesn't appear at all in
+ * Trading212's official OpenAPI spec, only `accountSummary` does).
+ *
+ * A single position lookup uses `positionsList`, not its own key: the
+ * documented `GET /equity/positions` endpoint accepts an optional `ticker`
+ * query filter (same operation, same rate-limit bucket) — see get_position
+ * in src/tools/positions.ts. There's no separate single-position endpoint.
  */
 export const RATE_LIMITS = {
   accountCash: { method: "GET", path: "/equity/account/cash", limit: perSeconds(5) },
   accountSummary: { method: "GET", path: "/equity/account/summary", limit: perSeconds(5) },
 
   positionsList: { method: "GET", path: "/equity/positions", limit: perSeconds(1) },
-  positionSingle: { method: "GET", path: "/equity/portfolio/{ticker}", limit: perSeconds(1) },
 
   ordersList: { method: "GET", path: "/equity/orders", limit: perSeconds(5) },
   orderSingle: { method: "GET", path: "/equity/orders/{id}", limit: perSeconds(1) },

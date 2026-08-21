@@ -37,14 +37,18 @@ export function registerOrderReadTools(server: McpServer) {
     "get_order_history",
     {
       description: "Get historical (filled/cancelled) orders, paginated.",
-      inputSchema: paginationSchema,
+      inputSchema: {
+        ...paginationSchema,
+        ticker: z.string().optional().describe("Filter by instrument ticker."),
+      },
       annotations: readOnlyAnnotations("Get Order History"),
     },
-    async ({ cursor, limit }) =>
+    async ({ cursor, limit, ticker }) =>
       jsonResult(
         await t212Get<PaginatedResponse<HistoricalOrderEntry>>("/equity/history/orders", "orderHistory", {
           cursor,
           limit,
+          ticker,
         })
       )
   );
