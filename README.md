@@ -15,7 +15,7 @@ see [Configuration](#configuration) to enable them.
 
 ## Requirements
 
-- Node.js 20 or newer
+- Node.js 24 or newer
 - A Trading212 account and an API key (from the Trading212 web app, under API settings)
 - Claude Desktop, to use this server as a local extension
 
