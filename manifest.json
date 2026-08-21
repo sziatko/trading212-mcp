@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "trading212-mcp",
   "display_name": "Trading212",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Read and optionally manage your Trading212 account (cash, positions, orders, pies, history) directly in Claude.",
   "author": {
     "name": "Serhii Ziatko"

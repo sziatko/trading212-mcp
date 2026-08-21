@@ -45,6 +45,12 @@ export function registerHistoryTools(server: McpServer) {
       annotations: readOnlyAnnotations("Get Transactions"),
     },
     async ({ cursor, limit, time }) => {
+      if ((cursor === undefined) !== (time === undefined)) {
+        throw new Error(
+          "get_transactions: `cursor` and `time` must be provided together, or both omitted — " +
+            "Trading212 rejects either one supplied alone."
+        );
+      }
       const data = await t212Get<PaginatedResponse<Transaction>>(
         "/equity/history/transactions",
         "transactions",

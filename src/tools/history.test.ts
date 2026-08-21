@@ -68,12 +68,48 @@ describe("history tools", () => {
     const server = createFakeServer();
     registerHistoryTools(server as any);
 
-    const result = await server.tools.get("get_transactions")!.callback({ cursor: "abc123", limit: 5 });
+    const result = await server.tools.get("get_transactions")!.callback({ limit: 5 });
+
+    expect(t212Get).toHaveBeenCalledWith("/equity/history/transactions", "transactions", {
+      cursor: undefined,
+      limit: 5,
+      time: undefined,
+    });
+    expect(result.structuredContent).toEqual({ items: [{ amount: 5 }] });
+  });
+
+  it("get_transactions accepts cursor and time together", async () => {
+    const { t212Get } = await import("../api/client.js");
+    vi.mocked(t212Get).mockResolvedValueOnce({ items: [{ amount: 5 }], nextPagePath: undefined });
+    const server = createFakeServer();
+    registerHistoryTools(server as any);
+
+    await server.tools
+      .get("get_transactions")!
+      .callback({ cursor: "abc123", time: "2024-01-01T00:00:00Z", limit: 5 });
 
     expect(t212Get).toHaveBeenCalledWith("/equity/history/transactions", "transactions", {
       cursor: "abc123",
       limit: 5,
+      time: "2024-01-01T00:00:00Z",
     });
-    expect(result.structuredContent).toEqual({ items: [{ amount: 5 }] });
+  });
+
+  it("get_transactions rejects cursor without time", async () => {
+    const server = createFakeServer();
+    registerHistoryTools(server as any);
+
+    await expect(server.tools.get("get_transactions")!.callback({ cursor: "abc123" })).rejects.toThrow(
+      "must be provided together"
+    );
+  });
+
+  it("get_transactions rejects time without cursor", async () => {
+    const server = createFakeServer();
+    registerHistoryTools(server as any);
+
+    await expect(
+      server.tools.get("get_transactions")!.callback({ time: "2024-01-01T00:00:00Z" })
+    ).rejects.toThrow("must be provided together");
   });
 });
