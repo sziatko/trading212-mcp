@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { t212Get } from "../trading212/client.js";
-import type { Position, SinglePosition } from "../trading212/types.js";
+import { t212Get } from "../api/client.js";
+import type { Position, SinglePosition } from "../api/types.js";
 import { jsonResult, readOnlyAnnotations } from "./shared.js";
 
 export function registerPositionTools(server: McpServer) {
@@ -11,7 +11,7 @@ export function registerPositionTools(server: McpServer) {
       description: "Get all open positions in the Trading212 account.",
       annotations: readOnlyAnnotations("Get Positions"),
     },
-    async () => jsonResult(await t212Get<Position[]>("/equity/positions", "positions"))
+    async () => jsonResult(await t212Get<Position[]>("/equity/positions", "positionsList"))
   );
 
   server.registerTool(
@@ -23,7 +23,7 @@ export function registerPositionTools(server: McpServer) {
     },
     async ({ ticker }) =>
       jsonResult(
-        await t212Get<SinglePosition>(`/equity/portfolio/${encodeURIComponent(ticker)}`, "position")
+        await t212Get<SinglePosition>(`/equity/portfolio/${encodeURIComponent(ticker)}`, "positionSingle")
       )
   );
 }

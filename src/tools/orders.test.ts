@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { registerOrderReadTools, registerOrderWriteTools } from "./orders.js";
 
-vi.mock("../trading212/client.js", () => ({
+vi.mock("../api/client.js", () => ({
   t212Get: vi.fn().mockResolvedValue([]),
   t212Post: vi.fn().mockResolvedValue({ id: 1, status: "CONFIRMED" }),
   t212Delete: vi.fn().mockResolvedValue(undefined),
@@ -19,7 +19,7 @@ function createFakeServer() {
 
 describe("order write tools", () => {
   it("are all annotated readOnlyHint:false so clients always prompt before running them", async () => {
-    const { t212Post } = await import("../trading212/client.js");
+    const { t212Post } = await import("../api/client.js");
     void t212Post;
     const server = createFakeServer();
     registerOrderWriteTools(server as any);
@@ -30,7 +30,7 @@ describe("order write tools", () => {
   });
 
   it("place_limit_order posts the given fields to /equity/orders/limit", async () => {
-    const { t212Post } = await import("../trading212/client.js");
+    const { t212Post } = await import("../api/client.js");
     const server = createFakeServer();
     registerOrderWriteTools(server as any);
 
@@ -41,7 +41,7 @@ describe("order write tools", () => {
   });
 
   it("place_market_order posts to /equity/orders/market", async () => {
-    const { t212Post } = await import("../trading212/client.js");
+    const { t212Post } = await import("../api/client.js");
     const server = createFakeServer();
     registerOrderWriteTools(server as any);
 
@@ -51,8 +51,36 @@ describe("order write tools", () => {
     expect(t212Post).toHaveBeenCalledWith("/equity/orders/market", "placeMarketOrder", body);
   });
 
+  it("place_stop_order posts to /equity/orders/stop", async () => {
+    const { t212Post } = await import("../api/client.js");
+    const server = createFakeServer();
+    registerOrderWriteTools(server as any);
+
+    const body = { ticker: "AAPL_US_EQ", quantity: -1, stopPrice: 90, timeValidity: "DAY" as const };
+    await server.tools.get("place_stop_order")!.callback(body);
+
+    expect(t212Post).toHaveBeenCalledWith("/equity/orders/stop", "placeStopOrder", body);
+  });
+
+  it("place_stop_limit_order posts to /equity/orders/stop_limit", async () => {
+    const { t212Post } = await import("../api/client.js");
+    const server = createFakeServer();
+    registerOrderWriteTools(server as any);
+
+    const body = {
+      ticker: "AAPL_US_EQ",
+      quantity: -1,
+      stopPrice: 90,
+      limitPrice: 89,
+      timeValidity: "DAY" as const,
+    };
+    await server.tools.get("place_stop_limit_order")!.callback(body);
+
+    expect(t212Post).toHaveBeenCalledWith("/equity/orders/stop_limit", "placeStopLimitOrder", body);
+  });
+
   it("cancel_order deletes /equity/orders/{id} and reports the result", async () => {
-    const { t212Delete } = await import("../trading212/client.js");
+    const { t212Delete } = await import("../api/client.js");
     const server = createFakeServer();
     registerOrderWriteTools(server as any);
 
@@ -72,5 +100,38 @@ describe("order read tools", () => {
     for (const [name, { config }] of server.tools) {
       expect(config.annotations.readOnlyHint, `${name} should be readOnlyHint:true`).toBe(true);
     }
+  });
+
+  it("get_orders fetches /equity/orders", async () => {
+    const { t212Get } = await import("../api/client.js");
+    const server = createFakeServer();
+    registerOrderReadTools(server as any);
+
+    await server.tools.get("get_orders")!.callback();
+
+    expect(t212Get).toHaveBeenCalledWith("/equity/orders", "ordersList");
+  });
+
+  it("get_order fetches /equity/orders/{id}", async () => {
+    const { t212Get } = await import("../api/client.js");
+    const server = createFakeServer();
+    registerOrderReadTools(server as any);
+
+    await server.tools.get("get_order")!.callback({ orderId: 7 });
+
+    expect(t212Get).toHaveBeenCalledWith("/equity/orders/7", "orderSingle");
+  });
+
+  it("get_order_history fetches /equity/history/orders with pagination params", async () => {
+    const { t212Get } = await import("../api/client.js");
+    const server = createFakeServer();
+    registerOrderReadTools(server as any);
+
+    await server.tools.get("get_order_history")!.callback({ cursor: 5, limit: 10 });
+
+    expect(t212Get).toHaveBeenCalledWith("/equity/history/orders", "orderHistory", {
+      cursor: 5,
+      limit: 10,
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { t212Delete, t212Get, t212Post } from "./client.js";
-import { __resetRateLimiter } from "./rateLimiter.js";
+import { __resetRateLimiter } from "../rate-limit/rateLimiter.js";
 
 function mockFetchOnce(body: unknown, init?: { ok?: boolean; status?: number; statusText?: string }) {
   const response = {
@@ -19,11 +19,40 @@ afterEach(() => {
   __resetRateLimiter();
 });
 
+describe("module initialization", () => {
+  const ORIGINAL_ENV = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL_ENV };
+    vi.resetModules();
+  });
+
+  it("throws a live-specific message when TRADING212_USE_LIVE=true and TRADING212_API_KEY is missing", async () => {
+    vi.resetModules();
+    process.env.TRADING212_USE_LIVE = "true";
+    delete process.env.TRADING212_API_KEY;
+
+    await expect(import("./client.js")).rejects.toThrow(
+      "Missing TRADING212_API_KEY in environment (see .env.example)"
+    );
+  });
+
+  it("throws a demo-specific message when TRADING212_USE_LIVE is unset and TRADING212_DEMO_API_KEY is missing", async () => {
+    vi.resetModules();
+    delete process.env.TRADING212_USE_LIVE;
+    delete process.env.TRADING212_DEMO_API_KEY;
+
+    await expect(import("./client.js")).rejects.toThrow(
+      "Missing TRADING212_DEMO_API_KEY in environment"
+    );
+  });
+});
+
 describe("t212Get", () => {
   it("sends a Basic auth header built from the demo API key by default", async () => {
     mockFetchOnce({ ok: true });
 
-    await t212Get("/equity/account/cash", "account/cash");
+    await t212Get("/equity/account/cash", "accountCash");
 
     const [, options] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(options.headers.Authorization).toBe("Basic test-demo-key");
@@ -32,7 +61,7 @@ describe("t212Get", () => {
   it("requests the given path against the demo base URL by default", async () => {
     mockFetchOnce({});
 
-    await t212Get("/equity/account/cash", "account/cash");
+    await t212Get("/equity/account/cash", "accountCash");
 
     const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(url.toString()).toBe("https://demo.trading212.com/api/v0/equity/account/cash");
@@ -51,7 +80,7 @@ describe("t212Get", () => {
   it("returns the parsed JSON body on success", async () => {
     mockFetchOnce({ free: 100 });
 
-    const result = await t212Get("/equity/account/cash", "account/cash");
+    const result = await t212Get("/equity/account/cash", "accountCash");
 
     expect(result).toEqual({ free: 100 });
   });
@@ -59,7 +88,7 @@ describe("t212Get", () => {
   it("throws with the status code when the response is not ok", async () => {
     mockFetchOnce({}, { ok: false, status: 401, statusText: "Unauthorized" });
 
-    await expect(t212Get("/equity/account/cash", "account/cash")).rejects.toThrow(
+    await expect(t212Get("/equity/account/cash", "accountCash")).rejects.toThrow(
       "Trading212 API error: 401 Unauthorized"
     );
   });
@@ -67,8 +96,23 @@ describe("t212Get", () => {
   it("throws a rate-limit-specific message on 429", async () => {
     mockFetchOnce({}, { ok: false, status: 429, statusText: "Too Many Requests" });
 
-    await expect(t212Get("/equity/account/cash", "account/cash")).rejects.toThrow(
+    await expect(t212Get("/equity/account/cash", "accountCash")).rejects.toThrow(
       "Trading212 API error: 429 Too Many Requests"
+    );
+  });
+
+  it("includes the Retry-After header value on 429 when present", async () => {
+    const response = {
+      ok: false,
+      status: 429,
+      statusText: "Too Many Requests",
+      headers: new Headers({ "Retry-After": "5" }),
+      json: () => Promise.resolve({}),
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+
+    await expect(t212Get("/equity/account/cash", "accountCash")).rejects.toThrow(
+      "Trading212 API error: 429 Too Many Requests (retry after 5s)"
     );
   });
 });

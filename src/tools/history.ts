@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { t212Get } from "../trading212/client.js";
-import type { Dividend, PaginatedResponse, Transaction } from "../trading212/types.js";
+import { t212Get } from "../api/client.js";
+import type { Dividend, PaginatedResponse, Transaction } from "../api/types.js";
 import { jsonResult, readOnlyAnnotations } from "./shared.js";
 import { paginationSchema } from "./pagination.js";
 

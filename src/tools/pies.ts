@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { t212Delete, t212Get, t212Post } from "../trading212/client.js";
-import type { Pie, PieRequest } from "../trading212/types.js";
+import { t212Delete, t212Get, t212Post } from "../api/client.js";
+import type { Pie, PieRequest } from "../api/types.js";
 import { jsonResult, readOnlyAnnotations, writeAnnotations } from "./shared.js";
 
 const pieRequestSchema = {
@@ -23,7 +23,7 @@ export function registerPieReadTools(server: McpServer) {
       description: "Get all investment pies in the Trading212 account.",
       annotations: readOnlyAnnotations("Get Pies"),
     },
-    async () => jsonResult(await t212Get<Pie[]>("/equity/pies", "pies"))
+    async () => jsonResult(await t212Get<Pie[]>("/equity/pies", "piesList"))
   );
 
   server.registerTool(
@@ -33,7 +33,7 @@ export function registerPieReadTools(server: McpServer) {
       inputSchema: { pieId: z.number().describe("Pie id") },
       annotations: readOnlyAnnotations("Get Pie"),
     },
-    async ({ pieId }) => jsonResult(await t212Get<Pie>(`/equity/pies/${pieId}`, "pie"))
+    async ({ pieId }) => jsonResult(await t212Get<Pie>(`/equity/pies/${pieId}`, "pieGet"))
   );
 }
 
@@ -45,7 +45,7 @@ export function registerPieWriteTools(server: McpServer) {
       inputSchema: pieRequestSchema,
       annotations: writeAnnotations("Create Pie"),
     },
-    async (body: PieRequest) => jsonResult(await t212Post<Pie>("/equity/pies", "pie", body))
+    async (body: PieRequest) => jsonResult(await t212Post<Pie>("/equity/pies", "pieCreate", body))
   );
 
   server.registerTool(
@@ -56,7 +56,7 @@ export function registerPieWriteTools(server: McpServer) {
       annotations: writeAnnotations("Update Pie"),
     },
     async ({ pieId, ...body }: PieRequest & { pieId: number }) =>
-      jsonResult(await t212Post<Pie>(`/equity/pies/${pieId}`, "pie", body))
+      jsonResult(await t212Post<Pie>(`/equity/pies/${pieId}`, "pieUpdate", body))
   );
 
   server.registerTool(
@@ -67,7 +67,7 @@ export function registerPieWriteTools(server: McpServer) {
       annotations: writeAnnotations("Delete Pie", { destructive: true }),
     },
     async ({ pieId }) => {
-      await t212Delete<void>(`/equity/pies/${pieId}`, "pie");
+      await t212Delete<void>(`/equity/pies/${pieId}`, "pieDelete");
       return jsonResult({ deleted: true, pieId });
     }
   );
@@ -79,6 +79,6 @@ export function registerPieWriteTools(server: McpServer) {
       inputSchema: { pieId: z.number().describe("Pie id to duplicate") },
       annotations: writeAnnotations("Duplicate Pie"),
     },
-    async ({ pieId }) => jsonResult(await t212Post<Pie>(`/equity/pies/${pieId}/duplicate`, "pie", {}))
+    async ({ pieId }) => jsonResult(await t212Post<Pie>(`/equity/pies/${pieId}/duplicate`, "pieDuplicate", {}))
   );
 }

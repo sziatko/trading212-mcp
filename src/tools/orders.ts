@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { t212Delete, t212Get, t212Post } from "../trading212/client.js";
+import { t212Delete, t212Get, t212Post } from "../api/client.js";
 import type {
   HistoricalOrderEntry,
   LimitOrderRequest,
@@ -9,7 +9,7 @@ import type {
   PaginatedResponse,
   StopLimitOrderRequest,
   StopOrderRequest,
-} from "../trading212/types.js";
+} from "../api/types.js";
 import { jsonResult, ORDER_LIMITATIONS_NOTE, readOnlyAnnotations, writeAnnotations } from "./shared.js";
 import { paginationSchema } from "./pagination.js";
 
@@ -20,7 +20,7 @@ export function registerOrderReadTools(server: McpServer) {
       description: "Get all currently open/pending orders.",
       annotations: readOnlyAnnotations("Get Orders"),
     },
-    async () => jsonResult(await t212Get<Order[]>("/equity/orders", "orders"))
+    async () => jsonResult(await t212Get<Order[]>("/equity/orders", "ordersList"))
   );
 
   server.registerTool(
@@ -30,7 +30,7 @@ export function registerOrderReadTools(server: McpServer) {
       inputSchema: { orderId: z.number().describe("Order id") },
       annotations: readOnlyAnnotations("Get Order"),
     },
-    async ({ orderId }) => jsonResult(await t212Get<Order>(`/equity/orders/${orderId}`, "order"))
+    async ({ orderId }) => jsonResult(await t212Get<Order>(`/equity/orders/${orderId}`, "orderSingle"))
   );
 
   server.registerTool(

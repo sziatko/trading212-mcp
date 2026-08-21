@@ -1,5 +1,5 @@
-import { waitForSlot } from "./rateLimiter.js";
-import { RATE_LIMITS } from "./rateLimits.js";
+import { waitForSlot } from "../rate-limit/rateLimiter.js";
+import { RATE_LIMITS, type RateLimitKey } from "../rate-limit/rateLimits.js";
 
 const USE_LIVE = process.env.TRADING212_USE_LIVE === "true";
 
@@ -20,7 +20,7 @@ if (!API_KEY) {
 async function request<T>(
   method: string,
   path: string,
-  rateLimitKey: keyof typeof RATE_LIMITS,
+  rateLimitKey: RateLimitKey,
   options?: { query?: Record<string, string | number | undefined>; body?: unknown }
 ): Promise<T> {
   const url = new URL(`${TRADING212_BASE_URL}${path}`);
@@ -28,7 +28,7 @@ async function request<T>(
     if (value !== undefined) url.searchParams.set(key, String(value));
   }
 
-  await waitForSlot(rateLimitKey, RATE_LIMITS[rateLimitKey]);
+  await waitForSlot(rateLimitKey, RATE_LIMITS[rateLimitKey].limit);
 
   const response = await fetch(url, {
     method,
@@ -58,7 +58,7 @@ async function request<T>(
 
 export function t212Get<T>(
   path: string,
-  rateLimitKey: keyof typeof RATE_LIMITS,
+  rateLimitKey: RateLimitKey,
   query?: Record<string, string | number | undefined>
 ): Promise<T> {
   return request<T>("GET", path, rateLimitKey, { query });
@@ -66,12 +66,12 @@ export function t212Get<T>(
 
 export function t212Post<T>(
   path: string,
-  rateLimitKey: keyof typeof RATE_LIMITS,
+  rateLimitKey: RateLimitKey,
   body: unknown
 ): Promise<T> {
   return request<T>("POST", path, rateLimitKey, { body });
 }
 
-export function t212Delete<T>(path: string, rateLimitKey: keyof typeof RATE_LIMITS): Promise<T> {
+export function t212Delete<T>(path: string, rateLimitKey: RateLimitKey): Promise<T> {
   return request<T>("DELETE", path, rateLimitKey);
 }

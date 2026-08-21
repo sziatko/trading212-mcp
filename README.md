@@ -86,15 +86,16 @@ prompts you to approve each call individually before it runs — nothing execute
 
 - `src/index.ts` — entrypoint. Creates the MCP server, registers all tools, and connects it over
   stdio so Claude Desktop can launch it as a subprocess.
-- `src/trading212/client.ts` — `t212Get/t212Post/t212Delete`, typed wrappers around `fetch` that
-  pick the live or demo base URL and API key, add the `Authorization: Basic <key>` header, enforce
-  the per-endpoint rate limit before sending, and throw on non-2xx responses. Every tool calls the
+- `src/api/client.ts` — `t212Get/t212Post/t212Delete`, typed wrappers around `fetch` that pick the
+  live or demo base URL and API key, add the `Authorization: Basic <key>` header, enforce the
+  per-endpoint rate limit before sending, and throw on non-2xx responses. Every tool calls the
   Trading212 API through these functions.
-- `src/trading212/rateLimiter.ts` / `rateLimits.ts` — a small in-memory sliding-window limiter and
-  the per-endpoint limits from [Trading212's rate-limiting docs](https://docs.trading212.com/api/section/rate-limiting),
-  so the client waits instead of hitting a 429 in normal use.
-- `src/trading212/types.ts` — TypeScript interfaces for the shapes sent/returned by the Trading212
-  API (cash, positions, orders, pies, etc), used to type the client's requests and responses.
+- `src/api/types.ts` — TypeScript interfaces for the shapes sent/returned by the Trading212 API
+  (cash, positions, orders, pies, etc), used to type the client's requests and responses.
+- `src/rate-limit/rateLimiter.ts` / `rateLimits.ts` — a small in-memory sliding-window limiter and
+  a declarative table of every endpoint documented at
+  [Trading212's rate-limiting docs](https://docs.trading212.com/api/section/rate-limiting) (method,
+  path, limit), so the client waits instead of hitting a 429 in normal use.
 - `src/tools/` — one file per API domain (`account.ts`, `positions.ts`, `orders.ts`, `history.ts`,
   `pies.ts`, `metadata.ts`). Each exports a `register*Tools(server)` function that registers its
   domain's MCP tools. `shared.ts` and `pagination.ts` hold small helpers reused across them.
@@ -140,6 +141,9 @@ Unit tests use [Vitest](https://vitest.dev). Run them with:
 ```
 npm test
 ```
+
+Run `npm run test:coverage` for a coverage report (100% statements/branches/functions/lines as of
+this writing).
 
 `test/setup.ts` stubs `TRADING212_API_KEY`/`TRADING212_DEMO_API_KEY` before any module loads,
 since `client.ts` validates them at import time. Coverage includes: `t212Get`/`t212Post`/
