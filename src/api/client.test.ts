@@ -9,6 +9,7 @@ function mockFetchOnce(body: unknown, init?: { ok?: boolean; status?: number; st
     statusText: init?.statusText ?? "OK",
     headers: new Headers(),
     json: () => Promise.resolve(body),
+    text: () => Promise.resolve(JSON.stringify(body)),
   };
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
   return response;
@@ -113,6 +114,29 @@ describe("t212Get", () => {
     );
   });
 
+  it("includes the response body in the thrown error when present", async () => {
+    mockFetchOnce({ code: "InvalidQuantity" }, { ok: false, status: 400, statusText: "Bad Request" });
+
+    await expect(t212Get("/equity/account/cash", "accountCash")).rejects.toThrow(
+      'Trading212 API error: 400 Bad Request — {"code":"InvalidQuantity"}'
+    );
+  });
+
+  it("omits the trailing ' — body' when the error response has no body", async () => {
+    const response = {
+      ok: false,
+      status: 401,
+      statusText: "Unauthorized",
+      headers: new Headers(),
+      text: () => Promise.resolve(""),
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+
+    const error = (await t212Get("/equity/account/cash", "accountCash").catch((e) => e)) as Error;
+
+    expect(error.message).toBe("Trading212 API error: 401 Unauthorized");
+  });
+
   it("throws a rate-limit-specific message on 429", async () => {
     mockFetchOnce({}, { ok: false, status: 429, statusText: "Too Many Requests" });
 
@@ -204,5 +228,20 @@ describe("t212Delete", () => {
     await expect(t212Delete("/equity/orders/999", "cancelOrder")).rejects.toThrow(
       "Trading212 API error: 404 Not Found"
     );
+  });
+
+  it("returns undefined for a 200 response with an empty body (some Trading212 DELETE endpoints send 200, not 204)", async () => {
+    const response = {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers(),
+      text: () => Promise.resolve(""),
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+
+    const result = await t212Delete("/equity/orders/123", "cancelOrder");
+
+    expect(result).toBeUndefined();
   });
 });

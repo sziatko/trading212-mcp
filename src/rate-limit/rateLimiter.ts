@@ -20,7 +20,10 @@ export async function waitForSlot(key: string, limit: RateLimit): Promise<void> 
 
   if (history.length >= limit.count) {
     const oldest = history[0];
-    const waitMs = limit.windowMs - (now - oldest) + 1;
+    // +50ms safety margin: a real 429 was observed against Trading212's
+    // actual demo API at the exact window boundary (clock drift/network jitter
+    // between us and their server)
+    const waitMs = limit.windowMs - (now - oldest) + 50;
     await sleep(waitMs);
     return waitForSlot(key, limit);
   }

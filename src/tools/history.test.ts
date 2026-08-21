@@ -68,10 +68,10 @@ describe("history tools", () => {
     const server = createFakeServer();
     registerHistoryTools(server as any);
 
-    const result = await server.tools.get("get_transactions")!.callback({ cursor: 1, limit: 5 });
+    const result = await server.tools.get("get_transactions")!.callback({ cursor: "abc123", limit: 5 });
 
     expect(t212Get).toHaveBeenCalledWith("/equity/history/transactions", "transactions", {
-      cursor: 1,
+      cursor: "abc123",
       limit: 5,
     });
     expect(result.structuredContent).toEqual({ items: [{ amount: 5 }] });

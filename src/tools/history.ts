@@ -33,8 +33,14 @@ export function registerHistoryTools(server: McpServer) {
         "Get historical cash movements (deposits, withdrawals, transfers), paginated."
       ),
       inputSchema: {
-        ...paginationSchema,
-        time: z.string().optional().describe("Retrieve transactions from this ISO 8601 time onward."),
+        ...paginationSchema,    
+        cursor: z.string().optional().describe("Pagination cursor from a previous response (a transaction id, not a number)."),
+        time: z
+          .string()
+          .optional()
+          .describe(
+            "ISO 8601/RFC3339 timestamp. Must be combined with `cursor` — Trading212 rejects `time` supplied alone."
+          ),
       },
       annotations: readOnlyAnnotations("Get Transactions"),
     },

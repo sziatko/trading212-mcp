@@ -55,14 +55,21 @@ async function request<T>(
         `Trading212 API error: 429 Too Many Requests${retryAfter ? ` (retry after ${retryAfter}s)` : ""}`
       );
     }
-    throw new Error(`Trading212 API error: ${response.status} ${response.statusText}`);
+    const body = await response.text();
+    throw new Error(
+      `Trading212 API error: ${response.status} ${response.statusText}${body ? ` — ${body}` : ""}`
+    );
   }
 
   if (response.status === 204) {
     return undefined as T;
   }
 
-  return response.json() as Promise<T>;
+  // Some endpoints (e.g. DELETE /equity/orders/{id}, DELETE /equity/pies/{id})
+  // return 200 with an empty body rather than 204, so response.json() would
+  // throw on the empty string. Parse manually and treat "no body" as no data.
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export function t212Get<T>(
