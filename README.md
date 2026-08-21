@@ -100,7 +100,8 @@ prompts you to approve each call individually before it runs — nothing execute
   Trading212 API through these functions.
 - `src/api/types.ts` — Zod schemas for the shapes sent/returned by the Trading212 API (cash,
   positions, orders, pies, etc); each schema's TypeScript type is derived from it via `z.infer`, so
-  there's one source of truth. These schemas are also used as every tool's `outputSchema` (see below). Kept
+  there's one source of truth. Not currently used as `outputSchema` (see below) — the types are
+  still the canonical reference and are ready to be re-wired once that's viable again. Kept
   in sync with the official OpenAPI spec below, except `CashBalanceSchema`: `/equity/account/cash`
   isn't in that spec at all, so its fields are best-effort from observed live responses, not a
   verified schema (see the doc comment on it in the file). It's kept anyway (see `get_cash_balance`
@@ -118,10 +119,19 @@ prompts you to approve each call individually before it runs — nothing execute
 
 ## Output schemas
 
-Every tool declares an `outputSchema` (from `src/api/types.ts`), so Claude sees the exact shape of
-what a tool returns — not just prose in its `description` — before ever calling it. Each result
-carries both a `content` block (JSON text, for clients that don't read structured output) and
-`structuredContent` (the same data, validated against `outputSchema`).
+Every tool result carries a `structuredContent` block (JSON, for clients that read structured
+output) alongside the usual `content` text block. **Tools currently do not declare an
+`outputSchema`.** They did originally — built from the Zod schemas in `src/api/types.ts`, so Claude
+could see a tool's exact return shape before calling it — but `@modelcontextprotocol/sdk` generates
+`outputSchema` as JSON Schema draft-07, and Claude Desktop's bundled MCP client validates declared
+schemas against 2020-12 only, rejecting draft-07 outright. That made every single tool call fail
+with an "invalid outputSchema ... unsupported dialect" error. This is a known interop gap between
+v1-SDK servers and v2 clients
+([modelcontextprotocol/typescript-sdk#2532](https://github.com/modelcontextprotocol/typescript-sdk/issues/2532),
+[anthropics/claude-code#86142](https://github.com/anthropics/claude-code/issues/86142)); the fix
+shipped in a separate client package this server doesn't control, so `outputSchema` is dropped from
+all 22 tools until Claude Desktop ships a build with the updated bundled client. The Zod schemas
+stay in `src/api/types.ts` as the source of truth, ready to be re-wired once that lands.
 
 MCP requires structured output to be a JSON object at the top level, so the 6 tools that
 conceptually return a list (`get_positions`, `get_position`, `get_orders`, `get_pies`,
