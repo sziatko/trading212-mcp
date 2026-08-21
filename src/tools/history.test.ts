@@ -25,29 +25,45 @@ describe("history tools", () => {
     }
   });
 
-  it("get_dividends fetches /equity/history/dividends with pagination params", async () => {
-    const { t212Get } = await import("../api/client.js");
+  it("declare an outputSchema", () => {
     const server = createFakeServer();
     registerHistoryTools(server as any);
 
-    await server.tools.get("get_dividends")!.callback({ cursor: 3, limit: 20 });
+    for (const [name, { config }] of server.tools) {
+      expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+    }
+  });
+
+  it("get_dividends fetches /equity/history/dividends with pagination params and passes through items/nextPagePath", async () => {
+    const { t212Get } = await import("../api/client.js");
+    vi.mocked(t212Get).mockResolvedValueOnce({ items: [{ ticker: "AAPL_US_EQ" }], nextPagePath: "next" });
+    const server = createFakeServer();
+    registerHistoryTools(server as any);
+
+    const result = await server.tools.get("get_dividends")!.callback({ cursor: 3, limit: 20 });
 
     expect(t212Get).toHaveBeenCalledWith("/equity/history/dividends", "dividends", {
       cursor: 3,
       limit: 20,
     });
+    expect(result.structuredContent).toEqual({
+      items: [{ ticker: "AAPL_US_EQ" }],
+      nextPagePath: "next",
+    });
   });
 
-  it("get_transactions fetches /equity/history/transactions with pagination params", async () => {
+  it("get_transactions fetches /equity/history/transactions with pagination params and passes through items/nextPagePath", async () => {
     const { t212Get } = await import("../api/client.js");
+    vi.mocked(t212Get).mockResolvedValueOnce({ items: [{ amount: 5 }], nextPagePath: undefined });
     const server = createFakeServer();
     registerHistoryTools(server as any);
 
-    await server.tools.get("get_transactions")!.callback({ cursor: 1, limit: 5 });
+    const result = await server.tools.get("get_transactions")!.callback({ cursor: 1, limit: 5 });
 
     expect(t212Get).toHaveBeenCalledWith("/equity/history/transactions", "transactions", {
       cursor: 1,
       limit: 5,
     });
+    expect(result.structuredContent).toEqual({ items: [{ amount: 5 }] });
   });
 });

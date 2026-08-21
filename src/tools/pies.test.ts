@@ -27,6 +27,15 @@ describe("pie write tools", () => {
     }
   });
 
+  it("declare an outputSchema", () => {
+    const server = createFakeServer();
+    registerPieWriteTools(server as any);
+
+    for (const [name, { config }] of server.tools) {
+      expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+    }
+  });
+
   it("create_pie posts the given fields to /equity/pies", async () => {
     const { t212Post } = await import("../api/client.js");
     const server = createFakeServer();
@@ -58,6 +67,7 @@ describe("pie write tools", () => {
     expect(t212Delete).toHaveBeenCalledWith("/equity/pies/9", "pieDelete");
     expect(result.content[0].text).toContain('"deleted": true');
     expect(result.content[0].text).toContain('"pieId": 9');
+    expect(result.structuredContent).toEqual({ deleted: true, pieId: 9 });
   });
 
   it("duplicate_pie posts to /equity/pies/{id}/duplicate", async () => {
@@ -81,14 +91,25 @@ describe("pie read tools", () => {
     }
   });
 
-  it("get_pies fetches /equity/pies", async () => {
-    const { t212Get } = await import("../api/client.js");
+  it("declare an outputSchema", () => {
     const server = createFakeServer();
     registerPieReadTools(server as any);
 
-    await server.tools.get("get_pies")!.callback();
+    for (const [name, { config }] of server.tools) {
+      expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+    }
+  });
+
+  it("get_pies fetches /equity/pies and wraps the array as structuredContent", async () => {
+    const { t212Get } = await import("../api/client.js");
+    vi.mocked(t212Get).mockResolvedValueOnce([{ id: 1 }]);
+    const server = createFakeServer();
+    registerPieReadTools(server as any);
+
+    const result = await server.tools.get("get_pies")!.callback();
 
     expect(t212Get).toHaveBeenCalledWith("/equity/pies", "piesList");
+    expect(result.structuredContent).toEqual({ pies: [{ id: 1 }] });
   });
 
   it("get_pie fetches /equity/pies/{id}", async () => {

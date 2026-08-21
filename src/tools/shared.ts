@@ -1,7 +1,18 @@
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 
-export function jsonResult(data: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+/**
+ * Builds a tool result carrying both `content` (JSON text, for clients that
+ * don't read structured output) and `structuredContent` (validated against
+ * the tool's outputSchema). `data` must be a plain object — MCP requires the
+ * top-level structured output to be an object, so array-returning endpoints
+ * are wrapped under a named key (e.g. `{ positions: [...] }`) before this is
+ * called.
+ */
+export function jsonResult(data: Record<string, unknown>) {
+  return {
+    content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
+    structuredContent: data,
+  };
 }
 
 export function readOnlyAnnotations(title: string): ToolAnnotations {

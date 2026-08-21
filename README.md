@@ -90,11 +90,12 @@ prompts you to approve each call individually before it runs — nothing execute
   live or demo base URL and API key, add the `Authorization: Basic <key>` header, enforce the
   per-endpoint rate limit before sending, and throw on non-2xx responses. Every tool calls the
   Trading212 API through these functions.
-- `src/api/types.ts` — TypeScript interfaces for the shapes sent/returned by the Trading212 API
-  (cash, positions, orders, pies, etc), used to type the client's requests and responses. Kept in
-  sync with the official OpenAPI spec below, except `CashBalance`: `/equity/account/cash` isn't in
-  that spec at all, so its fields are best-effort from observed live responses, not a verified
-  schema (see the doc comment on `CashBalance` in the file). It's kept anyway (see `get_cash_balance`
+- `src/api/types.ts` — Zod schemas for the shapes sent/returned by the Trading212 API (cash,
+  positions, orders, pies, etc); each schema's TypeScript type is derived from it via `z.infer`, so
+  there's one source of truth. These schemas are also used as every tool's `outputSchema` (see below). Kept
+  in sync with the official OpenAPI spec below, except `CashBalanceSchema`: `/equity/account/cash`
+  isn't in that spec at all, so its fields are best-effort from observed live responses, not a
+  verified schema (see the doc comment on it in the file). It's kept anyway (see `get_cash_balance`
   below) because it returns `ppl`/`result` — account-level profit/loss figures with no equivalent
   anywhere in the documented API, including `get_account_summary`.
 - `docs/trading212-openapi.yaml` — Trading212's official OpenAPI spec, kept as a reference for
@@ -106,6 +107,19 @@ prompts you to approve each call individually before it runs — nothing execute
 - `src/tools/` — one file per API domain (`account.ts`, `positions.ts`, `orders.ts`, `history.ts`,
   `pies.ts`, `metadata.ts`). Each exports a `register*Tools(server)` function that registers its
   domain's MCP tools. `shared.ts` and `pagination.ts` hold small helpers reused across them.
+
+## Output schemas
+
+Every tool declares an `outputSchema` (from `src/api/types.ts`), so Claude sees the exact shape of
+what a tool returns — not just prose in its `description` — before ever calling it. Each result
+carries both a `content` block (JSON text, for clients that don't read structured output) and
+`structuredContent` (the same data, validated against `outputSchema`).
+
+MCP requires structured output to be a JSON object at the top level, so the 6 tools that
+conceptually return a list (`get_positions`, `get_position`, `get_orders`, `get_pies`,
+`get_instruments`, `get_exchanges`) wrap their array under a named key instead of returning it bare
+— e.g. `get_positions` returns `{ "positions": [...] }`, not `[...]`. Every other tool's top-level
+shape is unchanged.
 
 ## Available tools
 

@@ -25,23 +25,36 @@ describe("metadata tools", () => {
     }
   });
 
-  it("get_instruments fetches /equity/metadata/instruments", async () => {
-    const { t212Get } = await import("../api/client.js");
+  it("declare an outputSchema", () => {
     const server = createFakeServer();
     registerMetadataTools(server as any);
 
-    await server.tools.get("get_instruments")!.callback();
-
-    expect(t212Get).toHaveBeenCalledWith("/equity/metadata/instruments", "instruments");
+    for (const [name, { config }] of server.tools) {
+      expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+    }
   });
 
-  it("get_exchanges fetches /equity/metadata/exchanges", async () => {
+  it("get_instruments fetches /equity/metadata/instruments and wraps the array as structuredContent", async () => {
     const { t212Get } = await import("../api/client.js");
+    vi.mocked(t212Get).mockResolvedValueOnce([{ ticker: "AAPL_US_EQ" }]);
     const server = createFakeServer();
     registerMetadataTools(server as any);
 
-    await server.tools.get("get_exchanges")!.callback();
+    const result = await server.tools.get("get_instruments")!.callback();
+
+    expect(t212Get).toHaveBeenCalledWith("/equity/metadata/instruments", "instruments");
+    expect(result.structuredContent).toEqual({ instruments: [{ ticker: "AAPL_US_EQ" }] });
+  });
+
+  it("get_exchanges fetches /equity/metadata/exchanges and wraps the array as structuredContent", async () => {
+    const { t212Get } = await import("../api/client.js");
+    vi.mocked(t212Get).mockResolvedValueOnce([{ id: 1 }]);
+    const server = createFakeServer();
+    registerMetadataTools(server as any);
+
+    const result = await server.tools.get("get_exchanges")!.callback();
 
     expect(t212Get).toHaveBeenCalledWith("/equity/metadata/exchanges", "exchanges");
+    expect(result.structuredContent).toEqual({ exchanges: [{ id: 1 }] });
   });
 });

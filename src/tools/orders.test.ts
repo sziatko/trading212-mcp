@@ -29,6 +29,15 @@ describe("order write tools", () => {
     }
   });
 
+  it("declare an outputSchema", () => {
+    const server = createFakeServer();
+    registerOrderWriteTools(server as any);
+
+    for (const [name, { config }] of server.tools) {
+      expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+    }
+  });
+
   it("place_limit_order posts the given fields to /equity/orders/limit", async () => {
     const { t212Post } = await import("../api/client.js");
     const server = createFakeServer();
@@ -89,6 +98,7 @@ describe("order write tools", () => {
     expect(t212Delete).toHaveBeenCalledWith("/equity/orders/42", "cancelOrder");
     expect(result.content[0].text).toContain('"cancelled": true');
     expect(result.content[0].text).toContain('"orderId": 42');
+    expect(result.structuredContent).toEqual({ cancelled: true, orderId: 42 });
   });
 });
 
@@ -102,14 +112,25 @@ describe("order read tools", () => {
     }
   });
 
-  it("get_orders fetches /equity/orders", async () => {
-    const { t212Get } = await import("../api/client.js");
+  it("declare an outputSchema", () => {
     const server = createFakeServer();
     registerOrderReadTools(server as any);
 
-    await server.tools.get("get_orders")!.callback();
+    for (const [name, { config }] of server.tools) {
+      expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+    }
+  });
+
+  it("get_orders fetches /equity/orders and wraps the array as structuredContent", async () => {
+    const { t212Get } = await import("../api/client.js");
+    vi.mocked(t212Get).mockResolvedValueOnce([{ id: 1 }]);
+    const server = createFakeServer();
+    registerOrderReadTools(server as any);
+
+    const result = await server.tools.get("get_orders")!.callback();
 
     expect(t212Get).toHaveBeenCalledWith("/equity/orders", "ordersList");
+    expect(result.structuredContent).toEqual({ orders: [{ id: 1 }] });
   });
 
   it("get_order fetches /equity/orders/{id}", async () => {
@@ -122,16 +143,18 @@ describe("order read tools", () => {
     expect(t212Get).toHaveBeenCalledWith("/equity/orders/7", "orderSingle");
   });
 
-  it("get_order_history fetches /equity/history/orders with pagination params", async () => {
+  it("get_order_history fetches /equity/history/orders with pagination params and passes through items/nextPagePath", async () => {
     const { t212Get } = await import("../api/client.js");
+    vi.mocked(t212Get).mockResolvedValueOnce({ items: [{ order: { id: 1 } }], nextPagePath: "next" });
     const server = createFakeServer();
     registerOrderReadTools(server as any);
 
-    await server.tools.get("get_order_history")!.callback({ cursor: 5, limit: 10 });
+    const result = await server.tools.get("get_order_history")!.callback({ cursor: 5, limit: 10 });
 
     expect(t212Get).toHaveBeenCalledWith("/equity/history/orders", "orderHistory", {
       cursor: 5,
       limit: 10,
     });
+    expect(result.structuredContent).toEqual({ items: [{ order: { id: 1 } }], nextPagePath: "next" });
   });
 });

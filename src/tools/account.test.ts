@@ -25,14 +25,25 @@ describe("account tools", () => {
     }
   });
 
-  it("get_cash_balance fetches /equity/account/cash", async () => {
-    const { t212Get } = await import("../api/client.js");
+  it("declare an outputSchema", () => {
     const server = createFakeServer();
     registerAccountTools(server as any);
 
-    await server.tools.get("get_cash_balance")!.callback();
+    for (const [name, { config }] of server.tools) {
+      expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+    }
+  });
+
+  it("get_cash_balance fetches /equity/account/cash and passes the result through as structuredContent", async () => {
+    const { t212Get } = await import("../api/client.js");
+    vi.mocked(t212Get).mockResolvedValueOnce({ free: 100 });
+    const server = createFakeServer();
+    registerAccountTools(server as any);
+
+    const result = await server.tools.get("get_cash_balance")!.callback();
 
     expect(t212Get).toHaveBeenCalledWith("/equity/account/cash", "accountCash");
+    expect(result.structuredContent).toEqual({ free: 100 });
   });
 
   it("get_account_summary fetches /equity/account/summary", async () => {

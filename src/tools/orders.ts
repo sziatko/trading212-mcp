@@ -1,14 +1,17 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { t212Delete, t212Get, t212Post } from "../api/client.js";
-import type {
-  HistoricalOrderEntry,
-  LimitOrderRequest,
-  MarketOrderRequest,
-  Order,
-  PaginatedResponse,
-  StopLimitOrderRequest,
-  StopOrderRequest,
+import {
+  HistoricalOrderEntrySchema,
+  OrderSchema,
+  paginatedResponseSchema,
+  type HistoricalOrderEntry,
+  type LimitOrderRequest,
+  type MarketOrderRequest,
+  type Order,
+  type PaginatedResponse,
+  type StopLimitOrderRequest,
+  type StopOrderRequest,
 } from "../api/types.js";
 import { jsonResult, ORDER_LIMITATIONS_NOTE, readOnlyAnnotations, writeAnnotations } from "./shared.js";
 import { paginationSchema } from "./pagination.js";
@@ -18,9 +21,10 @@ export function registerOrderReadTools(server: McpServer) {
     "get_orders",
     {
       description: "Get all currently open/pending orders.",
+      outputSchema: { orders: z.array(OrderSchema) },
       annotations: readOnlyAnnotations("Get Orders"),
     },
-    async () => jsonResult(await t212Get<Order[]>("/equity/orders", "ordersList"))
+    async () => jsonResult({ orders: await t212Get<Order[]>("/equity/orders", "ordersList") })
   );
 
   server.registerTool(
@@ -28,6 +32,7 @@ export function registerOrderReadTools(server: McpServer) {
     {
       description: "Get a single open/pending order by id.",
       inputSchema: { orderId: z.number().describe("Order id") },
+      outputSchema: OrderSchema,
       annotations: readOnlyAnnotations("Get Order"),
     },
     async ({ orderId }) => jsonResult(await t212Get<Order>(`/equity/orders/${orderId}`, "orderSingle"))
@@ -41,16 +46,17 @@ export function registerOrderReadTools(server: McpServer) {
         ...paginationSchema,
         ticker: z.string().optional().describe("Filter by instrument ticker."),
       },
+      outputSchema: paginatedResponseSchema(HistoricalOrderEntrySchema),
       annotations: readOnlyAnnotations("Get Order History"),
     },
-    async ({ cursor, limit, ticker }) =>
-      jsonResult(
-        await t212Get<PaginatedResponse<HistoricalOrderEntry>>("/equity/history/orders", "orderHistory", {
-          cursor,
-          limit,
-          ticker,
-        })
-      )
+    async ({ cursor, limit, ticker }) => {
+      const data = await t212Get<PaginatedResponse<HistoricalOrderEntry>>(
+        "/equity/history/orders",
+        "orderHistory",
+        { cursor, limit, ticker }
+      );
+      return jsonResult({ items: data.items, nextPagePath: data.nextPagePath });
+    }
   );
 }
 
@@ -70,6 +76,7 @@ export function registerOrderWriteTools(server: McpServer) {
         quantity,
         extendedHours: z.boolean().optional().describe("Allow execution during extended trading hours."),
       },
+      outputSchema: OrderSchema,
       annotations: writeAnnotations("Place Market Order"),
     },
     async (body: MarketOrderRequest) =>
@@ -86,6 +93,7 @@ export function registerOrderWriteTools(server: McpServer) {
         limitPrice: z.number().describe("The limit price."),
         timeValidity,
       },
+      outputSchema: OrderSchema,
       annotations: writeAnnotations("Place Limit Order"),
     },
     async (body: LimitOrderRequest) =>
@@ -102,6 +110,7 @@ export function registerOrderWriteTools(server: McpServer) {
         stopPrice: z.number().describe("The stop trigger price."),
         timeValidity,
       },
+      outputSchema: OrderSchema,
       annotations: writeAnnotations("Place Stop Order"),
     },
     async (body: StopOrderRequest) =>
@@ -119,6 +128,7 @@ export function registerOrderWriteTools(server: McpServer) {
         limitPrice: z.number().describe("The limit price once triggered."),
         timeValidity,
       },
+      outputSchema: OrderSchema,
       annotations: writeAnnotations("Place Stop-Limit Order"),
     },
     async (body: StopLimitOrderRequest) =>
@@ -130,6 +140,7 @@ export function registerOrderWriteTools(server: McpServer) {
     {
       description: "Cancel an active, unfilled order by its id.",
       inputSchema: { orderId: z.number().describe("Order id") },
+      outputSchema: { cancelled: z.boolean(), orderId: z.number() },
       annotations: writeAnnotations("Cancel Order", { destructive: true }),
     },
     async ({ orderId }) => {

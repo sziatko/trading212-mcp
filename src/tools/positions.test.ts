@@ -25,25 +25,38 @@ describe("position tools", () => {
     }
   });
 
-  it("get_positions fetches /equity/positions with no ticker filter", async () => {
-    const { t212Get } = await import("../api/client.js");
+  it("declare an outputSchema", () => {
     const server = createFakeServer();
     registerPositionTools(server as any);
 
-    await server.tools.get("get_positions")!.callback();
+    for (const [name, { config }] of server.tools) {
+      expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+    }
+  });
+
+  it("get_positions fetches /equity/positions with no ticker filter and wraps the array as structuredContent", async () => {
+    const { t212Get } = await import("../api/client.js");
+    vi.mocked(t212Get).mockResolvedValueOnce([{ ticker: "AAPL_US_EQ" }]);
+    const server = createFakeServer();
+    registerPositionTools(server as any);
+
+    const result = await server.tools.get("get_positions")!.callback();
 
     expect(t212Get).toHaveBeenCalledWith("/equity/positions", "positionsList");
+    expect(result.structuredContent).toEqual({ positions: [{ ticker: "AAPL_US_EQ" }] });
   });
 
   it("get_position fetches /equity/positions filtered by ticker, sharing the list's rate-limit bucket", async () => {
     const { t212Get } = await import("../api/client.js");
+    vi.mocked(t212Get).mockResolvedValueOnce([{ ticker: "AAPL_US_EQ" }]);
     const server = createFakeServer();
     registerPositionTools(server as any);
 
-    await server.tools.get("get_position")!.callback({ ticker: "AAPL_US_EQ" });
+    const result = await server.tools.get("get_position")!.callback({ ticker: "AAPL_US_EQ" });
 
     expect(t212Get).toHaveBeenCalledWith("/equity/positions", "positionsList", {
       ticker: "AAPL_US_EQ",
     });
+    expect(result.structuredContent).toEqual({ positions: [{ ticker: "AAPL_US_EQ" }] });
   });
 });
