@@ -1,14 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { t212Get } from "../api/client.js";
-import {
-  DividendSchema,
-  TransactionSchema,
-  paginatedResponseSchema,
-  type Dividend,
-  type PaginatedResponse,
-  type Transaction,
-} from "../api/types.js";
+import type { Dividend, PaginatedResponse, Transaction } from "../api/types.js";
 import { jsonResult, readOnlyAnnotations, withEnvironmentTag } from "./shared.js";
 import { paginationSchema } from "./pagination.js";
 
@@ -21,7 +14,6 @@ export function registerHistoryTools(server: McpServer) {
         ...paginationSchema,
         ticker: z.string().optional().describe("Filter by instrument ticker."),
       },
-      outputSchema: paginatedResponseSchema(DividendSchema),
       annotations: readOnlyAnnotations("Get Dividends"),
     },
     async ({ cursor, limit, ticker }) => {
@@ -44,7 +36,6 @@ export function registerHistoryTools(server: McpServer) {
         ...paginationSchema,
         time: z.string().optional().describe("Retrieve transactions from this ISO 8601 time onward."),
       },
-      outputSchema: paginatedResponseSchema(TransactionSchema),
       annotations: readOnlyAnnotations("Get Transactions"),
     },
     async ({ cursor, limit, time }) => {

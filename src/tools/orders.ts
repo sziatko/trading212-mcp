@@ -1,17 +1,14 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { t212Delete, t212Get, t212Post } from "../api/client.js";
-import {
-  HistoricalOrderEntrySchema,
-  OrderSchema,
-  paginatedResponseSchema,
-  type HistoricalOrderEntry,
-  type LimitOrderRequest,
-  type MarketOrderRequest,
-  type Order,
-  type PaginatedResponse,
-  type StopLimitOrderRequest,
-  type StopOrderRequest,
+import type {
+  HistoricalOrderEntry,
+  LimitOrderRequest,
+  MarketOrderRequest,
+  Order,
+  PaginatedResponse,
+  StopLimitOrderRequest,
+  StopOrderRequest,
 } from "../api/types.js";
 import {
   jsonResult,
@@ -27,7 +24,6 @@ export function registerOrderReadTools(server: McpServer) {
     "get_orders",
     {
       description: withEnvironmentTag("Get all currently open/pending orders."),
-      outputSchema: { orders: z.array(OrderSchema) },
       annotations: readOnlyAnnotations("Get Orders"),
     },
     async () => jsonResult({ orders: await t212Get<Order[]>("/equity/orders", "ordersList") })
@@ -38,7 +34,6 @@ export function registerOrderReadTools(server: McpServer) {
     {
       description: withEnvironmentTag("Get a single open/pending order by id."),
       inputSchema: { orderId: z.number().describe("Order id") },
-      outputSchema: OrderSchema,
       annotations: readOnlyAnnotations("Get Order"),
     },
     async ({ orderId }) => jsonResult(await t212Get<Order>(`/equity/orders/${orderId}`, "orderSingle"))
@@ -52,7 +47,6 @@ export function registerOrderReadTools(server: McpServer) {
         ...paginationSchema,
         ticker: z.string().optional().describe("Filter by instrument ticker."),
       },
-      outputSchema: paginatedResponseSchema(HistoricalOrderEntrySchema),
       annotations: readOnlyAnnotations("Get Order History"),
     },
     async ({ cursor, limit, ticker }) => {
@@ -84,7 +78,6 @@ export function registerOrderWriteTools(server: McpServer) {
         quantity,
         extendedHours: z.boolean().optional().describe("Allow execution during extended trading hours."),
       },
-      outputSchema: OrderSchema,
       annotations: writeAnnotations("Place Market Order"),
     },
     async (body: MarketOrderRequest) =>
@@ -103,7 +96,6 @@ export function registerOrderWriteTools(server: McpServer) {
         limitPrice: z.number().describe("The limit price."),
         timeValidity,
       },
-      outputSchema: OrderSchema,
       annotations: writeAnnotations("Place Limit Order"),
     },
     async (body: LimitOrderRequest) =>
@@ -122,7 +114,6 @@ export function registerOrderWriteTools(server: McpServer) {
         stopPrice: z.number().describe("The stop trigger price."),
         timeValidity,
       },
-      outputSchema: OrderSchema,
       annotations: writeAnnotations("Place Stop Order"),
     },
     async (body: StopOrderRequest) =>
@@ -142,7 +133,6 @@ export function registerOrderWriteTools(server: McpServer) {
         limitPrice: z.number().describe("The limit price once triggered."),
         timeValidity,
       },
-      outputSchema: OrderSchema,
       annotations: writeAnnotations("Place Stop-Limit Order"),
     },
     async (body: StopLimitOrderRequest) =>
@@ -154,7 +144,6 @@ export function registerOrderWriteTools(server: McpServer) {
     {
       description: withEnvironmentTag("Cancel an active, unfilled order by its id."),
       inputSchema: { orderId: z.number().describe("Order id") },
-      outputSchema: { cancelled: z.boolean(), orderId: z.number() },
       annotations: writeAnnotations("Cancel Order", { destructive: true }),
     },
     async ({ orderId }) => {

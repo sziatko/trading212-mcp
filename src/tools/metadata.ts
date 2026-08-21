@@ -1,7 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
 import { t212Get } from "../api/client.js";
-import { ExchangeSchema, InstrumentSchema, type Exchange, type Instrument } from "../api/types.js";
+import type { Exchange, Instrument } from "../api/types.js";
 import { jsonResult, readOnlyAnnotations, withEnvironmentTag } from "./shared.js";
 
 export function registerMetadataTools(server: McpServer) {
@@ -11,7 +10,6 @@ export function registerMetadataTools(server: McpServer) {
       description: withEnvironmentTag(
         "Get metadata for all tradeable instruments (tickers, names, ISINs, currencies, etc)."
       ),
-      outputSchema: { instruments: z.array(InstrumentSchema) },
       annotations: readOnlyAnnotations("Get Instruments"),
     },
     async () =>
@@ -24,7 +22,6 @@ export function registerMetadataTools(server: McpServer) {
     "get_exchanges",
     {
       description: withEnvironmentTag("Get metadata for all exchanges, including their working schedules."),
-      outputSchema: { exchanges: z.array(ExchangeSchema) },
       annotations: readOnlyAnnotations("Get Exchanges"),
     },
     async () =>

@@ -26,12 +26,12 @@ describe("position tools", () => {
     }
   });
 
-  it("declare an outputSchema", () => {
+  it("omit outputSchema (Claude Desktop rejects the draft-07 dialect the SDK emits)", () => {
     const server = createFakeServer();
     registerPositionTools(server as any);
 
     for (const [name, { config }] of server.tools) {
-      expect(config.outputSchema, `${name} should declare an outputSchema`).toBeDefined();
+      expect(config.outputSchema, `${name} should not declare an outputSchema`).toBeUndefined();
     }
   });
 

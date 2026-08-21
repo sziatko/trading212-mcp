@@ -1,14 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { t212Delete, t212Get, t212Post } from "../api/client.js";
-import {
-  PieDetailSchema,
-  PieSummarySchema,
-  type DuplicatePieRequest,
-  type PieDetail,
-  type PieRequest,
-  type PieSummary,
-} from "../api/types.js";
+import type { DuplicatePieRequest, PieDetail, PieRequest, PieSummary } from "../api/types.js";
 import { jsonResult, readOnlyAnnotations, withEnvironmentTag, writeAnnotations } from "./shared.js";
 
 const pieRequestSchema = {
@@ -28,7 +21,6 @@ export function registerPieReadTools(server: McpServer) {
     "get_pies",
     {
       description: withEnvironmentTag("Get all investment pies in the Trading212 account."),
-      outputSchema: { pies: z.array(PieSummarySchema) },
       annotations: readOnlyAnnotations("Get Pies"),
     },
     async () => jsonResult({ pies: await t212Get<PieSummary[]>("/equity/pies", "piesList") })
@@ -39,7 +31,6 @@ export function registerPieReadTools(server: McpServer) {
     {
       description: withEnvironmentTag("Get a single investment pie by id, including its holdings."),
       inputSchema: { pieId: z.number().describe("Pie id") },
-      outputSchema: PieDetailSchema,
       annotations: readOnlyAnnotations("Get Pie"),
     },
     async ({ pieId }) => jsonResult(await t212Get<PieDetail>(`/equity/pies/${pieId}`, "pieGet"))
@@ -52,7 +43,6 @@ export function registerPieWriteTools(server: McpServer) {
     {
       description: withEnvironmentTag("Create a new investment pie."),
       inputSchema: pieRequestSchema,
-      outputSchema: PieDetailSchema,
       annotations: writeAnnotations("Create Pie"),
     },
     async (body: PieRequest) => jsonResult(await t212Post<PieDetail>("/equity/pies", "pieCreate", body))
@@ -63,7 +53,6 @@ export function registerPieWriteTools(server: McpServer) {
     {
       description: withEnvironmentTag("Update an existing investment pie's settings and/or allocation."),
       inputSchema: { pieId: z.number().describe("Pie id"), ...pieRequestSchema },
-      outputSchema: PieDetailSchema,
       annotations: writeAnnotations("Update Pie"),
     },
     async ({ pieId, ...body }: PieRequest & { pieId: number }) =>
@@ -75,7 +64,6 @@ export function registerPieWriteTools(server: McpServer) {
     {
       description: withEnvironmentTag("Delete an investment pie by id."),
       inputSchema: { pieId: z.number().describe("Pie id") },
-      outputSchema: { deleted: z.boolean(), pieId: z.number() },
       annotations: writeAnnotations("Delete Pie", { destructive: true }),
     },
     async ({ pieId }) => {
@@ -95,7 +83,6 @@ export function registerPieWriteTools(server: McpServer) {
         name: z.string().optional().describe("Name for the duplicated pie."),
         icon: z.string().optional().describe("Icon for the duplicated pie."),
       },
-      outputSchema: PieDetailSchema,
       annotations: writeAnnotations("Duplicate Pie"),
     },
     async ({ pieId, ...body }: DuplicatePieRequest & { pieId: number }) =>
