@@ -1,0 +1,44 @@
+# Render Blueprint — deploys trading212-mcp with the Streamable HTTP transport.
+# https://render.com/docs/blueprint-spec
+#
+# All secret/account values are `sync: false`: Render will prompt for each one in
+# the dashboard on first deploy instead of storing it in this repo.
+#
+# SECURITY: leave ENABLE_ORDER_WRITE_TOOLS / ENABLE_PIE_WRITE_TOOLS unset (or
+# "false") on a remote instance — a public HTTPS endpoint has a much larger
+# attack surface than a local stdio process. See README "Remote deployment".
+services:
+  - type: web
+    name: trading212-mcp
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: TRANSPORT
+        value: http
+      - key: MCP_AUTH_TOKEN
+        sync: false
+      - key: TRADING212_API_KEY
+        sync: false
+      - key: TRADING212_DEMO_API_KEY
+        sync: false
+      - key: TRADING212_USE_LIVE
+        sync: false
+      - key: ENABLE_ACCOUNT_TOOLS
+        sync: false
+      - key: ENABLE_POSITIONS_TOOLS
+        sync: false
+      - key: ENABLE_ORDERS_TOOLS
+        sync: false
+      - key: ENABLE_HISTORY_TOOLS
+        sync: false
+      - key: ENABLE_PIES_TOOLS
+        sync: false
+      - key: ENABLE_METADATA_TOOLS
+        sync: false
+      - key: ENABLE_ORDER_WRITE_TOOLS
+        sync: false
+      - key: ENABLE_PIE_WRITE_TOOLS
+        sync: false

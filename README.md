@@ -87,10 +87,70 @@ Set any `ENABLE_*` variable to `false` to hide that tool category from Claude en
 `update_pie`, `delete_pie`, `duplicate_pie`) is annotated `readOnlyHint: false`, so Claude Desktop
 prompts you to approve each call individually before it runs — nothing executes silently.
 
+**Write tools on a remote instance.** If you deploy this server over HTTP (see
+[Remote deployment (Render)](#remote-deployment-render)), it's recommended to leave
+`ENABLE_ORDER_WRITE_TOOLS` and `ENABLE_PIE_WRITE_TOOLS` at their default `false`. A public HTTPS
+endpoint has a much wider attack surface than a local stdio subprocess that only Claude Desktop can
+talk to. The code doesn't force this — the defaults are already `false` — it's just the recommended
+posture for a remote deployment.
+
+## Remote deployment (Render)
+
+By default the server talks to Claude over **stdio** — Claude Desktop launches it as a local
+subprocess, so it only works on the machine it's installed on. Set `TRANSPORT=http` and it instead
+runs a **Streamable HTTP** server, which you can deploy once and connect to from desktop, web, and
+mobile Claude as a custom connector.
+
+The repo ships a [`render.yaml`](render.yaml) Blueprint for [Render](https://render.com). Checklist:
+
+1. **Generate an auth token:**
+
+   ```
+   openssl rand -hex 32
+   ```
+
+   Keep it somewhere safe — you'll paste it into Render and into Claude. The server refuses to
+   start with `TRANSPORT=http` unless `MCP_AUTH_TOKEN` is set, and it's never logged.
+
+2. **Create the service.** In Render: *New → Blueprint*, point it at your fork of this repo. Render
+   reads `render.yaml` (`type: web`, `env: node`, build `npm install && npm run build`, start
+   `node dist/index.js`, health check `/healthz`) and prompts for every environment variable,
+   since they're all marked `sync: false`:
+
+   | Variable | Value |
+   | --- | --- |
+   | `TRANSPORT` | `http` (already set in `render.yaml`) |
+   | `MCP_AUTH_TOKEN` | the token from step 1 |
+   | `TRADING212_API_KEY` / `TRADING212_DEMO_API_KEY` | your Trading212 key(s) |
+   | `TRADING212_USE_LIVE` | `false` for demo (recommended), `true` for your live account |
+   | `ENABLE_*` tool toggles | optional; omit to accept the defaults |
+   | `ENABLE_ORDER_WRITE_TOOLS` / `ENABLE_PIE_WRITE_TOOLS` | leave unset / `false` — see the warning under [Configuration](#configuration) |
+
+   You don't need to set `PORT` — Render provides it and the server binds `0.0.0.0:$PORT`.
+
+3. **Wait for the first deploy**, then check `https://<service>.onrender.com/healthz` returns
+   `OK`.
+
+4. **Add it to Claude** as a custom connector: *Settings → Connectors → Add custom connector*,
+   URL `https://<service>.onrender.com/mcp`, and supply the token from step 1 as the bearer
+   token / API key. Every request to `/mcp` must carry `Authorization: Bearer <token>`; anything
+   else gets a `401`.
+
+**Cold starts on Render's free tier.** A free web service sleeps after ~15 minutes of inactivity.
+The next request wakes it, which can take ~30–60 seconds before the first response — normal for
+occasional personal use. If that's annoying, either move to a paid instance or hit `/healthz` on a
+schedule (e.g. an external cron ping) to keep it warm.
+
 ## Project structure
 
-- `src/index.ts` — entrypoint. Creates the MCP server, registers all tools, and connects it over
-  stdio so Claude Desktop can launch it as a subprocess.
+- `src/index.ts` — entrypoint. Picks the transport: `TRANSPORT=http` starts the Streamable HTTP
+  server (`src/http.ts`), anything else connects `src/server.ts` over stdio so Claude Desktop can
+  launch it as a subprocess.
+- `src/server.ts` — `createMcpServer()`: builds the `McpServer` and registers every enabled tool
+  category. Transport-agnostic — both entrypoints call it.
+- `src/http.ts` — the Streamable HTTP transport: a Node `http` server with `GET /healthz`, a
+  bearer-token auth check (`MCP_AUTH_TOKEN`) on `/mcp`, and a fresh stateless
+  `StreamableHTTPServerTransport` per request. Refuses to start without `MCP_AUTH_TOKEN`.
 - `src/api/client.ts` — `t212Get/t212Post/t212Delete`, typed wrappers around `fetch` that pick the
   live or demo base URL and API key, add the `Authorization: Basic <key>` header, enforce the
   per-endpoint rate limit before sending, and throw on non-2xx responses. Every tool calls the
@@ -180,15 +240,18 @@ npm test
 
 Run `npm run test:coverage` for a coverage report (100% statements/branches/functions/lines as of
 this writing, across every source file except `src/index.ts`, which `vitest.config.ts` excludes —
-it's thin wiring around the MCP SDK's stdio transport, not worth mocking that transport to test.
+it's a five-line transport switch (stdio vs HTTP), not worth mocking a transport to test.
 `coverage.all: true` is set so a file with zero tests shows up as 0% rather than being silently
 omitted from the report).
 
 `test/setup.ts` stubs `TRADING212_API_KEY`/`TRADING212_DEMO_API_KEY` before any module loads,
 since `client.ts` validates them at import time. Coverage includes: `t212Get`/`t212Post`/
 `t212Delete` (auth header, URL building, error handling) mocking `fetch`; the rate limiter's
-sliding-window behavior; and the order/pie write tools' request routing and `readOnlyHint:false`
-annotations, mocking the client module directly.
+sliding-window behavior; the order/pie write tools' request routing and `readOnlyHint:false`
+annotations, mocking the client module directly; and the HTTP transport (`src/http.ts`) — the
+bearer-token auth check, `GET /healthz`, the `401` on a missing/invalid token, the
+refuse-to-start-without-`MCP_AUTH_TOKEN` guard, and an end-to-end `initialize` round-trip against a
+real `StreamableHTTPServerTransport` on an ephemeral port.
 
 ## License
 
