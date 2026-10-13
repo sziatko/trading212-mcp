@@ -8,7 +8,8 @@ import { registerMetadataTools } from "./tools/metadata.js";
 
 function isEnabled(envVar: string, defaultValue = true) {
   const value = process.env[envVar];
-  if (value === undefined) return defaultValue;
+  // Empty counts as unset: hosts like Render may pass a blank value for an optional var.
+  if (!value) return defaultValue;
   return value === "true";
 }
 
@@ -20,7 +21,7 @@ function isEnabled(envVar: string, defaultValue = true) {
 export function createMcpServer(): McpServer {
   const server = new McpServer({
     name: "trading212-mcp",
-    version: "0.4.0",
+    version: "0.4.1",
   });
 
   if (isEnabled("ENABLE_ACCOUNT_TOOLS")) registerAccountTools(server);

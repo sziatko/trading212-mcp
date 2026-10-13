@@ -54,4 +54,13 @@ describe("createMcpServer", () => {
     const { createMcpServer } = await import("./server.js");
     expect(() => createMcpServer()).not.toThrow();
   });
+
+  it("treats an empty ENABLE_* value as unset (e.g. a blank Render env var)", async () => {
+    for (const k of TOGGLES) process.env[k] = "";
+    const { createMcpServer } = await import("./server.js");
+    // _registeredTools is the SDK's internal registry; there's no public getter.
+    const tools = Object.keys((createMcpServer() as any)._registeredTools);
+    expect(tools).toContain("get_cash_balance");
+    expect(tools).not.toContain("place_market_order");
+  });
 });

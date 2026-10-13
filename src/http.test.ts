@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createServer, type Server } from "node:http";
+import { createServer, Server } from "node:http";
 import { AddressInfo } from "node:net";
 import {
   createRequestListener,
@@ -71,6 +71,15 @@ describe("startHttpServer", () => {
     await new Promise<void>((resolve, reject) =>
       srv.close((err) => (err ? reject(err) : resolve()))
     );
+  });
+
+  it("falls back to port 3000 when PORT is unset", () => {
+    process.env.MCP_AUTH_TOKEN = TOKEN;
+    delete process.env.PORT;
+    const listen = vi.spyOn(Server.prototype, "listen").mockReturnThis();
+
+    startHttpServer();
+    expect(listen).toHaveBeenCalledWith(3000, "0.0.0.0", expect.any(Function));
   });
 });
 

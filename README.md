@@ -1,258 +1,386 @@
 # trading212-mcp
 
 [![CI](https://github.com/sziatko/trading212-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/sziatko/trading212-mcp/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/sziatko/trading212-mcp)](https://github.com/sziatko/trading212-mcp/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Node](https://img.shields.io/badge/node-%3E%3D24-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
 
-An MCP server that connects Claude to your Trading212 account. It reads your real account data —
-cash balance, open positions, orders, pies, and history — so you can ask about your investments
-directly in a chat with Claude. Optionally, with write tools enabled, Claude can also place and
-cancel orders and manage pies (create/update/delete/duplicate), always with your explicit approval
-before each action. Read tools are read-only by design; write tools are off by default and every
-call still requires your explicit approval in Claude Desktop before it runs — nothing executes
-silently, and the whole thing is open source and runs locally on your machine.
+An [MCP](https://modelcontextprotocol.io) server that connects Claude to your
+[Trading212](https://www.trading212.com) account. You can ask about cash, positions, orders, pies,
+dividends and transactions in plain language. If you turn on the write tools, Claude can also place
+and cancel orders and manage pies, and you approve each of those calls yourself.
 
-## Install
+You can run it in two ways:
 
-1. **[Download trading212-mcp.mcpb](../../releases/latest/download/trading212-mcp.mcpb)**
-2. Double-click it (or drag it into the Claude Desktop window) to install.
-3. Claude Desktop will prompt for your Trading212 API key(s), whether to use your live or demo
-   account, and let you toggle individual tool categories (including write tools) on/off — no
-   terminal, no Node.js, no build step needed.
+- **Locally, as a Claude Desktop extension.** One-click `.mcpb` install over stdio. No terminal and
+  no Node.js needed.
+- **Remotely, over Streamable HTTP.** Deploy it once (a [Render](https://render.com) Blueprint is
+  included) and use it from Claude on desktop, web, mobile, and in Claude Code.
 
-You'll need a Trading212 account and an API key (from the Trading212 web app, under API settings),
-and Claude Desktop.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/sziatko/trading212-mcp)
 
-## Status
+## Highlights
 
-Both read tools and write tools (orders, pies) are implemented. Write tools are off by default —
-see [Configuration](#configuration) to enable them.
+- **22 tools.** 13 read tools cover the account, positions, orders, history, pies and metadata.
+  9 write tools cover orders and pies.
+- **Safe defaults.** It uses your demo account unless you switch to live. Write tools are off unless
+  you turn them on.
+- **You always know which account you're in.** Every tool description and every response starts
+  with `🧪 DEMO` or `🔴 LIVE`.
+- **Approval before any change.** Write tools are annotated `readOnlyHint: false`, so Claude asks
+  you before each call. `cancel_order` and `delete_pie` are also marked `destructiveHint: true`.
+- **Built-in rate limiting.** Each Trading212 endpoint has its own documented limit. The client
+  waits for a free slot, so normal use doesn't hit `429`.
+- **Locked-down HTTP mode.** The server won't start without a bearer token. Tokens are compared in
+  constant time and never logged.
+- **100% test coverage**, with CI on every push.
 
-## Running from source (for development)
+## What you can ask
 
-1. Clone this repository.
-2. Run `npm install`.
-3. Copy `.env.example` to `.env` and add your Trading212 API key.
-4. Run `npm run dev` to start the server locally.
-5. Add the server to Claude Desktop as a local extension, pointing to this project folder (see
-   `claude_desktop_config.json`'s `mcpServers` section).
+> What's my portfolio worth right now, and how much is profit?
+>
+> Which of my positions are down more than 10%?
+>
+> How much did I get in dividends this year, broken down by ticker?
+>
+> Show my pies and how each one is allocated.
+>
+> Put a limit order to buy 2 shares of AAPL at 180, good till cancelled. *(write tools on)*
 
-### Building the extension yourself
+## How it works
 
+```mermaid
+flowchart LR
+    D["Claude Desktop"] -- "stdio (local process)" --> S["trading212-mcp"]
+    R["Claude web · mobile · Claude Code"] -- "HTTPS /mcp + Bearer token" --> S
+    S -- "REST, Basic auth, rate-limited" --> T["Trading212 API (demo or live)"]
 ```
+
+The same tools are available in both modes. `TRANSPORT=http` switches the server from stdio to
+Streamable HTTP. Nothing else changes.
+
+## Contents
+
+- [Get a Trading212 API key](#get-a-trading212-api-key)
+- [Option 1: Claude Desktop extension (local)](#option-1-claude-desktop-extension-local)
+- [Option 2: Remote server over HTTP (Render)](#option-2-remote-server-over-http-render)
+- [Option 3: Run from source](#option-3-run-from-source)
+- [Tools](#tools)
+- [Configuration](#configuration)
+- [Security](#security)
+- [Development](#development)
+- [Project structure](#project-structure)
+- [Implementation notes](#implementation-notes)
+
+## Get a Trading212 API key
+
+1. In the Trading212 app, open **Settings → API** and generate a key. Give it only the permissions
+   you need: read-only is enough unless you plan to use the write tools.
+2. Trading212 gives you an **API key** and a **secret**. The server expects them joined as
+   `key:secret` and base64-encoded:
+
+   ```bash
+   printf '%s' 'YOUR_KEY:YOUR_SECRET' | base64
+   ```
+
+Demo (practice) and live accounts have separate keys. The server uses only one of them at a time,
+depending on `TRADING212_USE_LIVE`.
+
+## Option 1: Claude Desktop extension (local)
+
+1. **[Download trading212-mcp.mcpb](https://github.com/sziatko/trading212-mcp/releases/latest/download/trading212-mcp.mcpb)**
+2. Double-click it, or drag it into the Claude Desktop window.
+3. Claude Desktop asks for your API key(s) and whether to use the live or demo account. It also
+   shows a switch for each tool category, including the write tools.
+
+The server runs as a local process on your machine. It is only reachable from Claude Desktop.
+
+> **Changing a setting needs a full Claude Desktop restart** (quit and reopen, not just a new
+> chat). Claude Desktop passes settings as environment variables when it starts the server process,
+> and a running process can't pick up new ones. See
+> [Anthropic's docs](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop).
+
+## Option 2: Remote server over HTTP (Render)
+
+With `TRANSPORT=http`, the server runs a Streamable HTTP endpoint at `/mcp` and a health check at
+`/healthz`. Deploy it once and add it to Claude as a custom connector. It then works in Claude on
+desktop, web and mobile, and in Claude Code.
+
+### 1. Generate an auth token
+
+```bash
+openssl rand -hex 32
+```
+
+Every request to `/mcp` must send `Authorization: Bearer <token>`. Anything else gets `401`. With
+`TRANSPORT=http`, the server refuses to start if `MCP_AUTH_TOKEN` is not set.
+
+### 2. Deploy
+
+Click **Deploy to Render** at the top of this page, or in Render choose **New → Blueprint** and
+point it at your fork. Render reads [`render.yaml`](render.yaml):
+
+| Setting | Value |
+| --- | --- |
+| Runtime | Node (version from `engines` in `package.json`, `>=24`) |
+| Build | `npm install && npm run build` |
+| Start | `node dist/index.js` |
+| Health check | `/healthz` |
+| Plan | `free` |
+
+Render asks for each environment variable. They are all `sync: false`, so no secret is stored in
+the repo:
+
+| Variable | Value |
+| --- | --- |
+| `TRANSPORT` | `http` (already set in `render.yaml`) |
+| `MCP_AUTH_TOKEN` | the token from step 1 |
+| `TRADING212_DEMO_API_KEY` / `TRADING212_API_KEY` | your key(s), see [above](#get-a-trading212-api-key) |
+| `TRADING212_USE_LIVE` | `false` for demo (recommended to start), `true` for live |
+| `ENABLE_*` toggles | optional, leave empty for the defaults |
+| `ENABLE_ORDER_WRITE_TOOLS` / `ENABLE_PIE_WRITE_TOOLS` | leave empty or `false`, see [Security](#security) |
+
+You don't need `PORT`. Render sets it, and the server listens on `0.0.0.0:$PORT`.
+
+### 3. Check it's up
+
+```bash
+curl https://<your-service>.onrender.com/healthz
+# OK
+```
+
+### 4. Connect Claude
+
+**Claude (desktop, web, mobile):** go to **Settings → Connectors → Add custom connector**.
+
+- URL: `https://<your-service>.onrender.com/mcp`
+- Under **Request headers**, add the header `Authorization` with the value `Bearer <token>`.
+  Claude sends the value exactly as you type it, so include the `Bearer ` prefix.
+
+Static request headers on custom connectors are still a beta from Anthropic and may not be
+enabled for every account yet. If you don't see **Request headers**, use Claude Code (below) until
+your account gets it.
+
+**Claude Code:**
+
+```bash
+claude mcp add --transport http trading212 https://<your-service>.onrender.com/mcp \
+  --header "Authorization: Bearer <token>"
+```
+
+### Free tier cold starts
+
+A free Render web service goes to sleep after about 15 minutes without traffic. The next request
+wakes it up, which takes about 30–60 seconds. For personal use that's usually fine. If it bothers
+you, switch to a paid instance or ping `/healthz` on a schedule.
+
+### Other hosts
+
+Render is optional. Any platform that runs Node 24 and gives you HTTPS will work (Railway, Fly.io,
+a VPS behind a reverse proxy). Build with `npm run build`, start with `node dist/index.js`, and set
+`TRANSPORT=http`, `MCP_AUTH_TOKEN` and your Trading212 key. `PORT` defaults to `3000`.
+
+### Try it locally
+
+```bash
+npm install && npm run build
+TRANSPORT=http MCP_AUTH_TOKEN=dev-token TRADING212_DEMO_API_KEY=<key> node dist/index.js
+
+# in another terminal
+curl -X POST http://localhost:3000/mcp \
+  -H "Authorization: Bearer dev-token" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+## Option 3: Run from source
+
+```bash
+git clone https://github.com/sziatko/trading212-mcp.git
+cd trading212-mcp
+npm install
+npm run build
+```
+
+**Claude Desktop:** add the server to `claude_desktop_config.json`. Put the keys in the `env` block.
+Claude Desktop starts the server from its own working directory, so a `.env` file in the repo won't
+be picked up.
+
+```json
+{
+  "mcpServers": {
+    "trading212": {
+      "command": "node",
+      "args": ["/absolute/path/to/trading212-mcp/dist/index.js"],
+      "env": {
+        "TRADING212_DEMO_API_KEY": "<base64 key:secret>"
+      }
+    }
+  }
+}
+```
+
+**Claude Code:**
+
+```bash
+claude mcp add trading212 -e TRADING212_DEMO_API_KEY=<base64 key:secret> \
+  -- node /absolute/path/to/trading212-mcp/dist/index.js
+```
+
+To work on the code, copy `.env.example` to `.env`, fill it in, and run `npm run dev` (`tsx`, no
+build step).
+
+## Tools
+
+### Read tools
+
+All of them are `readOnlyHint: true`. Each one belongs to a category that is on by default.
+
+| Tool | Category | Parameters | Returns |
+| --- | --- | --- | --- |
+| `get_cash_balance` | account | none | Cash, invested, `ppl`/`result` (account profit/loss), pie cash, blocked funds. Uses the legacy `/equity/account/cash` endpoint because no documented endpoint has these fields. |
+| `get_account_summary` | account | none | Cash, invested value, profit/loss, total value. |
+| `get_positions` | positions | none | `{ positions: [...] }`, all open positions. |
+| `get_position` | positions | `ticker` | `{ positions: [...] }` with 0 or 1 items. |
+| `get_orders` | orders | none | `{ orders: [...] }`, all open/pending orders. |
+| `get_order` | orders | `orderId` | One open/pending order. |
+| `get_order_history` | orders | `cursor?`, `limit?` (1–50), `ticker?` | Filled/cancelled orders, `{ items, nextPagePath }`. |
+| `get_dividends` | history | `cursor?`, `limit?` (1–50), `ticker?` | Dividend payments, `{ items, nextPagePath }`. |
+| `get_transactions` | history | `limit?` (1–50), `cursor?` + `time?` (both or neither) | Deposits, withdrawals, transfers, `{ items, nextPagePath }`. |
+| `get_pies` | pies | none | `{ pies: [...] }`: cash, dividends, result, status. |
+| `get_pie` | pies | `pieId` | One pie with settings, holdings and allocation. |
+| `get_instruments` | metadata | none | `{ instruments: [...] }`: tickers, names, ISINs, currencies. |
+| `get_exchanges` | metadata | none | `{ exchanges: [...] }` with working schedules. |
+
+Tickers use Trading212's own format, e.g. `AAPL_US_EQ`.
+
+### Write tools
+
+All of them are `readOnlyHint: false` and **off by default**. Order tools need
+`ENABLE_ORDER_WRITE_TOOLS=true`, pie tools need `ENABLE_PIE_WRITE_TOOLS=true`. The matching read
+category (`ENABLE_ORDERS_TOOLS` or `ENABLE_PIES_TOOLS`) has to stay on too.
+
+| Tool | Parameters | Notes |
+| --- | --- | --- |
+| `place_market_order` | `ticker`, `quantity`, `extendedHours?` | Runs at the next available price. |
+| `place_limit_order` | `ticker`, `quantity`, `limitPrice`, `timeValidity` | Runs at `limitPrice` or better. |
+| `place_stop_order` | `ticker`, `quantity`, `stopPrice`, `timeValidity` | Becomes a market order at `stopPrice`. |
+| `place_stop_limit_order` | `ticker`, `quantity`, `stopPrice`, `limitPrice`, `timeValidity` | Becomes a limit order at `stopPrice`. |
+| `cancel_order` | `orderId` | `destructiveHint: true`. |
+| `create_pie` | `name`, `instrumentShares?`, `goal?`, `dividendCashAction?`, `endDate?`, `icon?` | `instrumentShares`, e.g. `{"AAPL_US_EQ": 0.5, "MSFT_US_EQ": 0.5}`. |
+| `update_pie` | `pieId` + the same fields as `create_pie` | |
+| `delete_pie` | `pieId` | `destructiveHint: true`. |
+| `duplicate_pie` | `pieId`, `name?`, `icon?` | |
+
+A positive `quantity` buys and a negative one sells. `timeValidity` is `DAY` or `GOOD_TILL_CANCEL`.
+Trading212 only executes orders in the account's main currency
+([docs](https://docs.trading212.com/api/orders)).
+
+## Configuration
+
+In the Desktop extension these settings appear as a form. Everywhere else they are environment
+variables (see [`.env.example`](.env.example)).
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `TRADING212_DEMO_API_KEY` | none | Demo account credential (base64 `key:secret`). Used when `TRADING212_USE_LIVE` is not `true`. |
+| `TRADING212_API_KEY` | none | Live account credential. Used only when `TRADING212_USE_LIVE=true`. |
+| `TRADING212_USE_LIVE` | `false` | `true` switches to your real account. |
+| `ENABLE_ACCOUNT_TOOLS` | `true` | Cash balance, account summary. |
+| `ENABLE_POSITIONS_TOOLS` | `true` | Open positions. |
+| `ENABLE_ORDERS_TOOLS` | `true` | Open orders, order history. |
+| `ENABLE_HISTORY_TOOLS` | `true` | Dividends, transactions. |
+| `ENABLE_PIES_TOOLS` | `true` | List/get pies. |
+| `ENABLE_METADATA_TOOLS` | `true` | Instruments, exchanges. |
+| `ENABLE_ORDER_WRITE_TOOLS` | `false` | Place/cancel orders. |
+| `ENABLE_PIE_WRITE_TOOLS` | `false` | Create/update/delete/duplicate pies. |
+| `TRANSPORT` | stdio | `http` starts the Streamable HTTP server. |
+| `MCP_AUTH_TOKEN` | none | Bearer token for `/mcp`. **Required** with `TRANSPORT=http`. |
+| `PORT` | `3000` | HTTP port. Render sets it for you. |
+
+An unset or empty toggle uses its default. Otherwise it is on only when it is exactly `true`, and
+any other value turns it off.
+
+## Security
+
+- **Demo first.** The default is the demo account, and every response is tagged `🧪 DEMO` or
+  `🔴 LIVE`, so you can't confuse them.
+- **Writes are opt-in and need approval.** Write tools aren't registered unless you enable them. Once
+  enabled, Claude asks you before every call.
+- **Keep write tools off on a remote server.** A public HTTPS endpoint is much more exposed than a
+  local process only Claude Desktop can talk to. The code doesn't enforce this, but the defaults
+  already keep them off.
+- **HTTP auth.** The server won't start without `MCP_AUTH_TOKEN`. Tokens are compared in constant
+  time, never logged, and never echoed back in errors.
+- **No state between requests.** Each HTTP request gets a new MCP server and transport.
+- **Least-privilege keys.** Trading212 keys can be limited to specific permissions. Give the key no
+  more than you need.
+
+## Development
+
+```bash
+npm test                    # unit tests (Vitest)
+npm run test:coverage       # coverage report, currently 100% across the board
+npm run test:integration    # every tool over real MCP stdio, against the Trading212 DEMO API
+npm run test:integration -- --write   # also place/cancel demo orders and create/delete a demo pie
+```
+
+The integration test always forces `TRADING212_USE_LIVE=false`, so it can never touch a live
+account. It needs `TRADING212_DEMO_API_KEY` in `.env`.
+
+**Build the `.mcpb` extension yourself:**
+
+```bash
 npm install -g @anthropic-ai/mcpb
 npm run package
 ```
 
-This builds the project, installs production-only dependencies into a temp directory, and packs
-`trading212-mcp.mcpb` in the repo root (see `scripts/package.sh` and `manifest.json`).
+This builds the project, installs production-only dependencies into a temp directory, and writes
+`trading212-mcp.mcpb` to the repo root (see `scripts/package.sh` and `manifest.json`).
 
-## Data source
-
-By default, this server reads from your Trading212 demo/practice account. Set
-`TRADING212_USE_LIVE=true` (or toggle "Use live account" in the extension settings) to read from
-your real live account instead — see [Configuration](#configuration).
-
-## Configuration
-
-When installed as a Claude Desktop extension, these are exposed as a settings UI. When running
-from source, set them as environment variables (in `.env`, or in `claude_desktop_config.json`'s
-`env` block):
-
-**Changing any setting requires a full Claude Desktop restart** (quit and reopen, not just a new
-chat) to take effect. This is a Claude Desktop limitation, not something this server controls:
-settings are passed in as environment variables when Claude Desktop spawns the server process, and
-a running process can't pick up new environment variables from outside — only a fresh process
-launch does. There is currently no way to reload a single extension without restarting the whole
-app; see [Anthropic's own documentation](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop),
-which states the same restart requirement.
-
-| Variable | Default | Description |
-| --- | --- | --- |
-| `TRADING212_API_KEY` | — | Basic-auth credential from your **live** Trading212 account (Settings → API). Only used when `TRADING212_USE_LIVE=true`. |
-| `TRADING212_DEMO_API_KEY` | — | Basic-auth credential from your **demo/practice** account. Only used when `TRADING212_USE_LIVE` is unset or `false` (the default). Live and demo keys are separate — only one is active at a time. |
-| `TRADING212_USE_LIVE` | `false` | Set to `true` to read from your real live account instead of demo. |
-| `ENABLE_ACCOUNT_TOOLS` | `true` | Cash balance, account summary. |
-| `ENABLE_POSITIONS_TOOLS` | `true` | Open positions. |
-| `ENABLE_ORDERS_TOOLS` | `true` | Read-only order tools: open orders, order history. |
-| `ENABLE_HISTORY_TOOLS` | `true` | Dividends, transactions. |
-| `ENABLE_PIES_TOOLS` | `true` | Read-only pie tools: list/get pies. |
-| `ENABLE_METADATA_TOOLS` | `true` | Instruments, exchanges. |
-| `ENABLE_ORDER_WRITE_TOOLS` | `false` | Place/cancel orders. Independent of `ENABLE_PIE_WRITE_TOOLS`. |
-| `ENABLE_PIE_WRITE_TOOLS` | `false` | Create/update/delete/duplicate pies. Independent of `ENABLE_ORDER_WRITE_TOOLS`. |
-
-Set any `ENABLE_*` variable to `false` to hide that tool category from Claude entirely.
-
-**Order limitations:** orders can only be executed in the account's main currency. [link](https://docs.trading212.com/api/orders)
-
-**Write tools require approval.** Every write tool (`place_*_order`, `cancel_order`, `create_pie`,
-`update_pie`, `delete_pie`, `duplicate_pie`) is annotated `readOnlyHint: false`, so Claude Desktop
-prompts you to approve each call individually before it runs — nothing executes silently.
-
-**Write tools on a remote instance.** If you deploy this server over HTTP (see
-[Remote deployment (Render)](#remote-deployment-render)), it's recommended to leave
-`ENABLE_ORDER_WRITE_TOOLS` and `ENABLE_PIE_WRITE_TOOLS` at their default `false`. A public HTTPS
-endpoint has a much wider attack surface than a local stdio subprocess that only Claude Desktop can
-talk to. The code doesn't force this — the defaults are already `false` — it's just the recommended
-posture for a remote deployment.
-
-## Remote deployment (Render)
-
-By default the server talks to Claude over **stdio** — Claude Desktop launches it as a local
-subprocess, so it only works on the machine it's installed on. Set `TRANSPORT=http` and it instead
-runs a **Streamable HTTP** server, which you can deploy once and connect to from desktop, web, and
-mobile Claude as a custom connector.
-
-The repo ships a [`render.yaml`](render.yaml) Blueprint for [Render](https://render.com). Checklist:
-
-1. **Generate an auth token:**
-
-   ```
-   openssl rand -hex 32
-   ```
-
-   Keep it somewhere safe — you'll paste it into Render and into Claude. The server refuses to
-   start with `TRANSPORT=http` unless `MCP_AUTH_TOKEN` is set, and it's never logged.
-
-2. **Create the service.** In Render: *New → Blueprint*, point it at your fork of this repo. Render
-   reads `render.yaml` (`type: web`, `env: node`, build `npm install && npm run build`, start
-   `node dist/index.js`, health check `/healthz`) and prompts for every environment variable,
-   since they're all marked `sync: false`:
-
-   | Variable | Value |
-   | --- | --- |
-   | `TRANSPORT` | `http` (already set in `render.yaml`) |
-   | `MCP_AUTH_TOKEN` | the token from step 1 |
-   | `TRADING212_API_KEY` / `TRADING212_DEMO_API_KEY` | your Trading212 key(s) |
-   | `TRADING212_USE_LIVE` | `false` for demo (recommended), `true` for your live account |
-   | `ENABLE_*` tool toggles | optional; omit to accept the defaults |
-   | `ENABLE_ORDER_WRITE_TOOLS` / `ENABLE_PIE_WRITE_TOOLS` | leave unset / `false` — see the warning under [Configuration](#configuration) |
-
-   You don't need to set `PORT` — Render provides it and the server binds `0.0.0.0:$PORT`.
-
-3. **Wait for the first deploy**, then check `https://<service>.onrender.com/healthz` returns
-   `OK`.
-
-4. **Add it to Claude** as a custom connector: *Settings → Connectors → Add custom connector*,
-   URL `https://<service>.onrender.com/mcp`, and supply the token from step 1 as the bearer
-   token / API key. Every request to `/mcp` must carry `Authorization: Bearer <token>`; anything
-   else gets a `401`.
-
-**Cold starts on Render's free tier.** A free web service sleeps after ~15 minutes of inactivity.
-The next request wakes it, which can take ~30–60 seconds before the first response — normal for
-occasional personal use. If that's annoying, either move to a paid instance or hit `/healthz` on a
-schedule (e.g. an external cron ping) to keep it warm.
+CI (`.github/workflows/ci.yml`) runs `npm ci`, the build and the tests on Node 24 for every push and
+pull request.
 
 ## Project structure
 
-- `src/index.ts` — entrypoint. Picks the transport: `TRANSPORT=http` starts the Streamable HTTP
-  server (`src/http.ts`), anything else connects `src/server.ts` over stdio so Claude Desktop can
-  launch it as a subprocess.
-- `src/server.ts` — `createMcpServer()`: builds the `McpServer` and registers every enabled tool
-  category. Transport-agnostic — both entrypoints call it.
-- `src/http.ts` — the Streamable HTTP transport: a Node `http` server with `GET /healthz`, a
-  bearer-token auth check (`MCP_AUTH_TOKEN`) on `/mcp`, and a fresh stateless
-  `StreamableHTTPServerTransport` per request. Refuses to start without `MCP_AUTH_TOKEN`.
-- `src/api/client.ts` — `t212Get/t212Post/t212Delete`, typed wrappers around `fetch` that pick the
-  live or demo base URL and API key, add the `Authorization: Basic <key>` header, enforce the
-  per-endpoint rate limit before sending, and throw on non-2xx responses. Every tool calls the
-  Trading212 API through these functions.
-- `src/api/types.ts` — Zod schemas for the shapes sent/returned by the Trading212 API (cash,
-  positions, orders, pies, etc); each schema's TypeScript type is derived from it via `z.infer`, so
-  there's one source of truth. Not currently used as `outputSchema` (see below) — the types are
-  still the canonical reference and are ready to be re-wired once that's viable again. Kept
-  in sync with the official OpenAPI spec below, except `CashBalanceSchema`: `/equity/account/cash`
-  isn't in that spec at all, so its fields are best-effort from observed live responses, not a
-  verified schema (see the doc comment on it in the file). It's kept anyway (see `get_cash_balance`
-  below) because it returns `ppl`/`result` — account-level profit/loss figures with no equivalent
-  anywhere in the documented API, including `get_account_summary`.
-- `docs/trading212-openapi.yaml` — Trading212's official OpenAPI spec, kept as a reference for
-  exact request/response schemas and rate limits. Not fetched at runtime.
-- `src/rate-limit/rateLimiter.ts` / `rateLimits.ts` — a small in-memory sliding-window limiter and
-  a declarative table of every endpoint documented at
-  [Trading212's rate-limiting docs](https://docs.trading212.com/api/section/rate-limiting) (method,
-  path, limit), so the client waits instead of hitting a 429 in normal use.
-- `src/tools/` — one file per API domain (`account.ts`, `positions.ts`, `orders.ts`, `history.ts`,
-  `pies.ts`, `metadata.ts`). Each exports a `register*Tools(server)` function that registers its
-  domain's MCP tools. `shared.ts` and `pagination.ts` hold small helpers reused across them.
-
-## Output schemas
-
-Every tool result carries a `structuredContent` block (JSON, for clients that read structured
-output) alongside the usual `content` text block. **Tools currently do not declare an
-`outputSchema`.** They did originally — built from the Zod schemas in `src/api/types.ts`, so Claude
-could see a tool's exact return shape before calling it — but `@modelcontextprotocol/sdk` generates
-`outputSchema` as JSON Schema draft-07, and Claude Desktop's bundled MCP client validates declared
-schemas against 2020-12 only, rejecting draft-07 outright. That made every single tool call fail
-with an "invalid outputSchema ... unsupported dialect" error. This is a known interop gap between
-v1-SDK servers and v2 clients
-([modelcontextprotocol/typescript-sdk#2532](https://github.com/modelcontextprotocol/typescript-sdk/issues/2532),
-[anthropics/claude-code#86142](https://github.com/anthropics/claude-code/issues/86142)); the fix
-shipped in a separate client package this server doesn't control, so `outputSchema` is dropped from
-all 22 tools until Claude Desktop ships a build with the updated bundled client. The Zod schemas
-stay in `src/api/types.ts` as the source of truth, ready to be re-wired once that lands.
-
-MCP requires structured output to be a JSON object at the top level, so the 6 tools that
-conceptually return a list (`get_positions`, `get_position`, `get_orders`, `get_pies`,
-`get_instruments`, `get_exchanges`) wrap their array under a named key instead of returning it bare
-— e.g. `get_positions` returns `{ "positions": [...] }`, not `[...]`. Every other tool's top-level
-shape is unchanged.
-
-## Available tools
-
-### Read tools (`readOnlyHint: true`)
-
-| Tool | Description |
-| --- | --- |
-| `get_cash_balance` | Current cash balance, via the undocumented legacy `/equity/account/cash` endpoint — kept because it's the only source for `ppl`/`result` (account-level profit/loss) and a couple of other fields (`invested`, `pieCash`, `blocked`) not available from any documented endpoint. |
-| `get_account_summary` | Full account summary: cash, invested value, profit/loss, total value. |
-| `get_positions` | All open positions. |
-| `get_position` | A single open position by ticker (filters `get_positions` server-side; returns 0 or 1 items). |
-| `get_orders` | All currently open/pending orders. |
-| `get_order` | A single open/pending order by id. |
-| `get_order_history` | Historical (filled/cancelled) orders, paginated, optionally filtered by ticker. |
-| `get_dividends` | Historical dividend payments, paginated, optionally filtered by ticker. |
-| `get_transactions` | Historical cash movements (deposits, withdrawals, transfers), paginated, optionally from a given time. |
-| `get_pies` | All investment pies (summary shape: cash, dividends, result, status). |
-| `get_pie` | A single investment pie by id (detailed shape: settings, holdings, per-instrument allocation). |
-| `get_instruments` | Metadata for all tradeable instruments (tickers, names, ISINs, currencies). |
-| `get_exchanges` | Metadata for all exchanges, including their working schedules. |
-
-### Write tools (`readOnlyHint: false`, disabled by default — see `ENABLE_ORDER_WRITE_TOOLS` / `ENABLE_PIE_WRITE_TOOLS`)
-
-| Tool | Description |
-| --- | --- |
-| `place_market_order` | Place a market order (executes at next available price). |
-| `place_limit_order` | Place a limit order (executes at a specified price or better). |
-| `place_stop_order` | Place a stop order (becomes a market order once triggered). |
-| `place_stop_limit_order` | Place a stop-limit order (becomes a limit order once triggered). |
-| `cancel_order` | Cancel an active, unfilled order by id. |
-| `create_pie` | Create a new investment pie. |
-| `update_pie` | Update an existing pie's settings and/or allocation. |
-| `delete_pie` | Delete a pie by id. |
-| `duplicate_pie` | Duplicate an existing pie, optionally renaming/re-iconing the copy. |
-
-## Testing
-
-Unit tests use [Vitest](https://vitest.dev). Run them with:
-
 ```
-npm test
+src/
+├── index.ts              Entrypoint: stdio by default, Streamable HTTP when TRANSPORT=http
+├── server.ts             createMcpServer(): registers every enabled tool category
+├── http.ts               HTTP transport: /healthz, bearer auth, stateless /mcp
+├── api/
+│   ├── client.ts         t212Get/Post/Delete: live/demo URL, Basic auth, rate limit, errors
+│   └── types.ts          Zod schemas for Trading212 request/response shapes
+├── rate-limit/
+│   ├── rateLimiter.ts    In-memory sliding-window limiter
+│   └── rateLimits.ts     Per-endpoint limits from Trading212's docs
+└── tools/                One file per domain: account, positions, orders, history, pies, metadata
+docs/trading212-openapi.yaml   Official Trading212 OpenAPI spec, kept for reference
+scripts/                       .mcpb packaging, MCP integration test
+manifest.json                  Claude Desktop extension manifest
+render.yaml                    Render Blueprint for the HTTP deployment
 ```
 
-Run `npm run test:coverage` for a coverage report (100% statements/branches/functions/lines as of
-this writing, across every source file except `src/index.ts`, which `vitest.config.ts` excludes —
-it's a five-line transport switch (stdio vs HTTP), not worth mocking a transport to test.
-`coverage.all: true` is set so a file with zero tests shows up as 0% rather than being silently
-omitted from the report).
+## Implementation notes
 
-`test/setup.ts` stubs `TRADING212_API_KEY`/`TRADING212_DEMO_API_KEY` before any module loads,
-since `client.ts` validates them at import time. Coverage includes: `t212Get`/`t212Post`/
-`t212Delete` (auth header, URL building, error handling) mocking `fetch`; the rate limiter's
-sliding-window behavior; the order/pie write tools' request routing and `readOnlyHint:false`
-annotations, mocking the client module directly; and the HTTP transport (`src/http.ts`) — the
-bearer-token auth check, `GET /healthz`, the `401` on a missing/invalid token, the
-refuse-to-start-without-`MCP_AUTH_TOKEN` guard, and an end-to-end `initialize` round-trip against a
-real `StreamableHTTPServerTransport` on an ephemeral port.
+**No `outputSchema` for now.** Every tool returns `structuredContent` next to the text `content`,
+but no tool declares an `outputSchema`. The first versions did, built from the Zod schemas in
+`src/api/types.ts`. However, `@modelcontextprotocol/sdk` generates JSON Schema draft-07, and Claude
+Desktop's bundled client only accepts 2020-12, so every tool call failed with an "unsupported
+dialect" error
+([typescript-sdk#2532](https://github.com/modelcontextprotocol/typescript-sdk/issues/2532),
+[claude-code#86142](https://github.com/anthropics/claude-code/issues/86142)). The Zod schemas remain
+the source of truth and can be wired back once Claude Desktop ships the fixed client.
+
+**Lists are wrapped.** MCP requires structured output to be an object, so tools that return a list
+wrap it under a key: `{ "positions": [...] }`, not `[...]`.
+
+**`get_cash_balance` uses an undocumented endpoint.** `/equity/account/cash` isn't in the official
+spec, but it's the only source of account-level `ppl`/`result`. Its schema is based on observed
+responses, not on the spec.
 
 ## License
 
-MIT
+[MIT](LICENSE)

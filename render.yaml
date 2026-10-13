@@ -10,7 +10,7 @@
 services:
   - type: web
     name: trading212-mcp
-    env: node
+    runtime: node
     plan: free
     buildCommand: npm install && npm run build
     startCommand: node dist/index.js

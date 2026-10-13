@@ -99,7 +99,8 @@ export function startHttpServer(): Server {
     );
   }
 
-  const port = Number(process.env.PORT) || 3000;
+  // Not `Number(PORT) || 3000`: that would turn PORT=0 (ephemeral port) into 3000.
+  const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   const httpServer = createServer(createRequestListener(authToken));
   httpServer.listen(port, "0.0.0.0", () => {
     console.error(
